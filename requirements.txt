@@ -5,7 +5,7 @@
 PySide6==6.11.2
 
 # Chiffrement du fichier d'entrees d'envoi rapide
-cryptography==49.0.0
+cryptography==50.0.1
 
 # Nom des processus proprietaires des fenetres (EnumWindows -> Get-Process)
 psutil==7.2.2

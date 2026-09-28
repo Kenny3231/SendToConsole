@@ -53,7 +53,7 @@ from ui import icons
 from ui.theme import LIGHT, apply_theme, mark_secondary, token as theme_token
 
 APP_TITLE = "SendToConsole"
-APP_VERSION = "0.7.0"
+APP_VERSION = "0.7.1"
 #: Délai (s) pour confirmer par un second appui le collage de plusieurs lignes.
 PASTE_CONFIRM_S = 5
 # Échantillon de l'aperçu de conversion (jamais le contenu réel : secret possible).
@@ -1269,7 +1269,20 @@ class MainWindow(QMainWindow):
             return
         # hwnd a ete releve dans le filtre d'evenements, a l'instant meme du
         # raccourci : c'est la fenêtre que l'operateur regardait.
+        if not self._is_foreign_target(hwnd):
+            # Comme pour « Coller » : pas de repli sur la derniere fenetre de
+            # travail (reserve au clic sur la palette), le secret partirait
+            # dans une fenetre que l'operateur ne regarde pas.
+            reason = "raccourci pressé hors d'une fenêtre cible"
+            self._deny(reason)
+            self._notify(f"Envoi rapide refusé : {reason}", from_hotkey=True)
+            return
         self._quick_send(entry, countdown=0, hwnd=hwnd)
+
+    def _is_foreign_target(self, hwnd: int) -> bool:
+        """Fenetre valide pour une frappe declenchee par raccourci : non nulle
+        (transition d'activation) et exterieure a l'outil."""
+        return bool(hwnd) and not w32.belongs_to_process(hwnd, self._own_pid)
 
     def _pause_for_hotkey_during_send(self) -> bool:
         """Un raccourci global presse PENDANT un envoi : ses modificateurs
@@ -1315,7 +1328,7 @@ class MainWindow(QMainWindow):
         refuses, pas d'ENTREE sur la derniere ligne, et un texte de
         plusieurs lignes (chacune validee par ENTREE) demande un second
         appui du raccourci."""
-        if not hwnd or w32.belongs_to_process(hwnd, self._own_pid):
+        if not self._is_foreign_target(hwnd):
             # Contrairement a la palette, aucun repli sur la derniere fenetre
             # de travail : le contenu (souvent un secret) partirait dans une
             # fenetre que l'operateur ne regarde pas.

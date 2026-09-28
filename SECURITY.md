@@ -29,7 +29,7 @@ ci-dessous sont des exigences du projet, vérifiées par la suite de tests
 | Accès limité au fichier | DACL NTFS protégée : votre compte, SYSTEM et Administrateurs uniquement (sur NTFS). |
 | Pas de fuite annexe | Jamais de secret dans le journal, le registre (`QSettings`), un message d'erreur, ni le presse-papiers. |
 | Presse-papiers jamais écrit | Lu seulement quand vous pressez le raccourci « Coller », puis tapé ; jamais journalisé. Caractères de contrôle et invisibles refusés, pas d'ENTRÉE sur la dernière ligne, double appui pour plusieurs lignes, jamais de frappe dans une autre fenêtre que celle au premier plan. |
-| Frappe au bon endroit | Ciblage par handle de fenêtre ; pause automatique si le focus quitte la cible. |
+| Frappe au bon endroit | Ciblage par handle de fenêtre ; pause automatique si le focus quitte la cible ; un raccourci pressé alors que l'outil a le focus est refusé (jamais de frappe dans une autre fenêtre). |
 
 Aucune connexion réseau : l'application n'a ni serveur, ni télémétrie, ni
 mise à jour automatique.

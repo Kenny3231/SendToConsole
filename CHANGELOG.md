@@ -3,6 +3,14 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.1] - 2026-09-28
+
+### Sécurité
+- Raccourcis des entrées d'envoi rapide : si l'outil a le focus (ou si
+  aucune fenêtre n'est au premier plan), l'envoi est refusé et signalé par
+  une bulle, au lieu de partir dans la dernière fenêtre utilisée. Même règle
+  que « Coller » ; le clic sur la palette garde ce repli, voulu.
+
 ## [0.7.0] - 2026-09-28
 
 ### Ajouté
@@ -67,6 +75,7 @@ Première version publique.
 - Releases construites par la CI, avec empreintes SHA-256 et attestation de
   provenance.
 
+[0.7.1]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.7.1
 [0.7.0]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.7.0
 [0.6.6]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.6.6
 [0.6.5]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.6.5

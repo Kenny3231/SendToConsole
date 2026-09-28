@@ -773,3 +773,42 @@ def test_controller_releases_tokens_after_stop(window):
     window.controller._set_state("sending")
     window.controller.stop()
     assert window.controller._tokens == []
+
+
+def test_regression_entry_hotkey_never_falls_back_to_another_window(
+        window, monkeypatch):
+    """Raccourci d'une entree presse alors que l'outil a le focus (ou sans
+    fenetre au premier plan) : la frappe partait dans la derniere fenetre de
+    travail, que l'operateur ne regardait pas. Refus + bulle, comme Coller."""
+    from keyboard import backend
+    starts, notes = [], []
+    monkeypatch.setattr(window.controller, "start",
+                        lambda *a, **k: starts.append(a))
+    monkeypatch.setattr(backend, "belongs_to_process",
+                        lambda hwnd, pid: hwnd == 4242)
+    window.notify.connect(notes.append)
+    window._last_foreground = 1002
+    entry = QuickEntry(label="root", text="secret")
+    window._on_hotkey(entry, 4242)      # l'outil a le focus
+    window._on_hotkey(entry, 0)         # aucune fenetre au premier plan
+    assert starts == []
+    assert "hors d'une fenêtre cible" in window.log_edit.toPlainText()
+    window._on_hotkey(entry, 1001)      # vraie fenetre cible : envoye
+    assert len(starts) == 1 and starts[0][2] == 1001
+
+
+def test_palette_click_keeps_fallback_to_last_window(window, monkeypatch):
+    """Le clic sur la palette donne le focus a l'outil : le repli sur la
+    derniere fenetre de travail est voulu dans ce seul cas."""
+    from keyboard import backend
+    starts = []
+    monkeypatch.setattr(window.controller, "start",
+                        lambda *a, **k: starts.append((a, k)))
+    monkeypatch.setattr(backend, "get_foreground_window", lambda: 4242)
+    monkeypatch.setattr(backend, "belongs_to_process",
+                        lambda hwnd, pid: hwnd == 4242)
+    window._last_foreground = 1002
+    window._on_palette_click(QuickEntry(label="root", text="x"))
+    assert len(starts) == 1
+    args, kw = starts[0]
+    assert args[2] == 1002 and kw["restore_focus"] is True

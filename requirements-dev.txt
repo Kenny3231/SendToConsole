@@ -5,5 +5,5 @@ pytest==9.1.1
 # Non installes lors de l'epinglage (2026-09-25) : a epingler apres install.
 pytest-cov>=5
 ruff>=0.5
-bandit>=1.7
+bandit>=1.9.4
 pip-audit>=2.7

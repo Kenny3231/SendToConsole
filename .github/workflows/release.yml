@@ -64,7 +64,8 @@ jobs:
           $zip = "SendToConsole-$env:TAG-win64.zip"
           Compress-Archive -Path $app -DestinationPath $zip -CompressionLevel Optimal
           $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
-          "$hash  $zip" | Out-File -Encoding ascii SHA256SUMS.txt
+          # Fin de ligne LF : `sha256sum -c` (Linux/macOS) refuse le CRLF.
+          [IO.File]::WriteAllText("$PWD/SHA256SUMS.txt", "$hash  $zip`n")
           Get-Content SHA256SUMS.txt
           "ZIP=$zip" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 

@@ -38,12 +38,17 @@ MOD_NOREPEAT = 0x4000   # un appui maintenu ne declenche qu'une fois
 IS_WINDOWS = sys.platform == "win32"
 
 #: Actions de l'outil declenchables par raccourci global.
+ACTION_PASTE_CLIPBOARD = "paste_clipboard"
 ACTION_CAPTURE_TARGET = "capture_target"
 ACTION_TOGGLE_PALETTE = "toggle_palette"
 ACTION_LABELS = {
+    ACTION_PASTE_CLIPBOARD: "Coller le presse-papiers (frappe)",
     ACTION_CAPTURE_TARGET: "Cibler la fenêtre active",
     ACTION_TOGGLE_PALETTE: "Afficher / masquer la palette",
 }
+#: Ordre d'affichage dans Options (et d'enregistrement au demarrage).
+APP_ACTIONS = (ACTION_PASTE_CLIPBOARD, ACTION_CAPTURE_TARGET,
+               ACTION_TOGGLE_PALETTE)
 
 if IS_WINDOWS:
     from keyboard.win32_api import user32
@@ -354,6 +359,21 @@ def hotkey_owner(entries: list[QuickEntry],
 _CHAR_VKS = set(range(0x30, 0x3A)) | set(range(0x41, 0x5B)) | {0x20}
 
 
+#: Copier / couper / coller de Windows (et variantes courantes) : un raccourci
+#: global les confisquerait partout, y compris le Ctrl+C qui precede
+#: l'action « Coller le presse-papiers ».
+_EDITING_HOTKEYS = {
+    (MOD_CONTROL, 0x43),                  # Ctrl+C
+    (MOD_CONTROL, 0x56),                  # Ctrl+V
+    (MOD_CONTROL, 0x58),                  # Ctrl+X
+    (MOD_CONTROL | MOD_SHIFT, 0x56),      # Ctrl+Maj+V (collage sans mise en forme)
+    (MOD_CONTROL | MOD_SHIFT, 0x43),      # Ctrl+Maj+C (copie des terminaux)
+    (MOD_CONTROL, 0x2D),                  # Ctrl+Inser
+    (MOD_SHIFT, 0x2D),                    # Maj+Inser
+    (MOD_SHIFT, 0x2E),                    # Maj+Suppr
+}
+
+
 def unsafe_hotkey_reason(mods: int, vk: int, hkl: int) -> Optional[str]:
     """Pourquoi (mods, vk) ne doit pas devenir un raccourci global, ou None.
 
@@ -365,6 +385,9 @@ def unsafe_hotkey_reason(mods: int, vk: int, hkl: int) -> Optional[str]:
     """
     if mods == 0 or vk == 0:
         return None
+    if (mods, vk) in _EDITING_HOTKEYS:
+        return (f"{format_hotkey(mods, vk)} est le copier / coller de Windows : "
+                "il serait confisqué dans toutes les applications.")
     if mods == MOD_SHIFT and vk in _CHAR_VKS:
         return (f"{format_hotkey(mods, vk)} confisquerait la majuscule "
                 f"« {vk_name(vk)} » dans toutes les applications.")

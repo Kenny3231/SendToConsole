@@ -3,7 +3,7 @@
 Une QuickEntry = une entree d'envoi rapide : un libelle, le texte a taper
 (souvent un mot de passe), un raccourci clavier global optionnel, et le
 choix d'envoyer ENTREE apres. C'est la structure de l'onglet 5 du script
-script PowerShell d'origine - pas une notion de "profil".
+PowerShell d'origine - pas une notion de "profil".
 """
 
 from __future__ import annotations
@@ -15,7 +15,8 @@ from typing import Any
 @dataclass
 class QuickEntry:
     label: str
-    text: str = ""
+    # Hors du repr : un `{entry!r}` de debogage n'afficherait jamais le secret.
+    text: str = field(default="", repr=False)
     # Raccourci global : modificateurs Win32 (MOD_ALT=1, MOD_CONTROL=2,
     # MOD_SHIFT=4, MOD_WIN=8) et code de touche virtuelle. 0/0 = aucun.
     mods: int = 0

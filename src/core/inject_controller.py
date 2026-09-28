@@ -116,6 +116,7 @@ class InjectController(QObject):
             return
         self._timer.stop()
         self._set_state("idle")
+        self._tokens = []       # la sequence (secrets compris) ne survit pas
         self.status_changed.emit(f"Arrêté - {reason}")
 
     def pause(self) -> None:
@@ -211,6 +212,7 @@ class InjectController(QObject):
             self.status_changed.emit("Terminé.")
             self.diagnostics.emit(set(engine.fallback_chars),
                                   set(engine.failed_chars))
+            self._tokens = []   # la sequence (secrets compris) ne survit pas
             self.finished.emit()
             return
 

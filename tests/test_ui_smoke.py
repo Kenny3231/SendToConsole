@@ -620,3 +620,156 @@ def test_set_no_activate_style_reports_failure_on_invalid_window():
         pytest.skip("Win32")
     from ui.palette import set_no_activate_style
     assert set_no_activate_style(0) is False      # HWND nul : refus relu
+
+
+# ------------------------------------------- coller le presse-papiers --
+@pytest.fixture
+def paste(window, qapp, monkeypatch):
+    """Presse-papiers simule + capture de l'envoi (aucune vraie frappe).
+    L'action est differee (QTimer) : on laisse tourner la boucle Qt."""
+    import ui.clipboard as clip
+    from core.hotkeys import ACTION_PASTE_CLIPBOARD
+    from PySide6.QtCore import QElapsedTimer
+    state = {"text": "", "starts": [], "notes": []}
+    monkeypatch.setattr(clip, "read_clipboard_text", lambda: state["text"])
+    monkeypatch.setattr(window.controller, "start",
+                        lambda tokens, hkl, hwnd, **kw: state["starts"].append(
+                            (tokens, hwnd, kw)))
+    window.notify.connect(state["notes"].append)
+
+    def press(text, hwnd=1001):
+        state["text"] = text
+        window._on_action_hotkey(ACTION_PASTE_CLIPBOARD, hwnd)
+        timer = QElapsedTimer()
+        timer.start()
+        while timer.elapsed() < 300:          # report 0 ms + relecture 120 ms
+            qapp.processEvents()
+        return state["starts"]
+    press.state = state
+    return press
+
+
+def _typed(tokens):
+    return "".join(t.ch if t.kind == "char" else f"<{t.kind}>" for t in tokens)
+
+
+def test_paste_single_line_types_into_window_under_hotkey(window, paste):
+    starts = paste("show running-config\r\n")
+    assert len(starts) == 1
+    tokens, hwnd, kw = starts[0]
+    assert hwnd == 1001 and kw["countdown"] == 0
+    # Le saut de ligne copie avec le texte n'ajoute PAS d'ENTREE.
+    assert _typed(tokens) == "show running-config"
+
+
+def test_paste_multiline_needs_second_press(window, paste):
+    assert paste("ls -la\r\nwhoami\r\n") == []          # 1er appui : avertit
+    assert "2 lignes à coller" in paste.state["notes"][-1]
+    starts = paste("ls -la\r\nwhoami\r\n")               # 2e appui : tape
+    assert len(starts) == 1
+    assert _typed(starts[0][0]) == "ls -la<enter>whoami"
+
+
+def test_paste_multiline_confirmation_is_tied_to_text_and_window(window, paste):
+    paste("a\nb")
+    assert paste("a\nc") == []            # texte change : nouvel avertissement
+    assert paste("a\nc", hwnd=1002) == [] # autre fenetre : idem
+    assert len(paste("a\nc", hwnd=1002)) == 1
+
+
+def test_regression_paste_trailing_blank_line_not_executed(window, paste):
+    """'ls\n\n'.splitlines() = ['ls', ''] : ENTREE etait tapee apres ls."""
+    starts = paste("ls\n\n  \n")
+    assert len(starts) == 1 and _typed(starts[0][0]) == "ls"
+
+
+@pytest.mark.parametrize("bad", ["\x04", "\x1b:!sh", "a\x1cb", "a\x85b",
+                                 "a b", "pa​ss", "‮txt"])
+def test_regression_paste_refuses_control_and_invisible_chars(window, paste, bad):
+    """Ils devenaient de vraies touches (Ctrl+D, Echap) ou des ENTREE."""
+    assert paste(f"root{bad}") == []
+    log = window.log_edit.toPlainText()
+    assert "caractère(s) de contrôle ou invisible(s)" in log
+    assert bad not in log
+
+
+def test_paste_allows_tab(window, paste):
+    starts = paste("col1\tcol2")
+    assert len(starts) == 1 and "<tab>" in _typed(starts[0][0])
+
+
+def test_paste_never_logs_clipboard_content(window, paste):
+    paste("MotDePasse-Secret!42")
+    log = window.log_edit.toPlainText()
+    assert "MotDePasse-Secret!42" not in log and "Presse-papiers" in log
+
+
+def test_paste_refuses_empty_clipboard_after_retry(window, paste):
+    assert paste("") == [] and paste("  \r\n ") == []
+    assert "presse-papiers vide" in window.log_edit.toPlainText()
+
+
+def test_paste_refusal_notifies_tray_when_window_hidden(window, paste):
+    window.hide()
+    paste("")
+    assert any("Collage refusé" in n for n in paste.state["notes"])
+
+
+def test_paste_refuses_oversized_clipboard(window, paste):
+    from core.paste import MAX_PASTE_CHARS
+    assert paste("x" * (MAX_PASTE_CHARS + 1)) == []
+    assert "trop long" in window.log_edit.toPlainText()
+
+
+def test_paste_never_falls_back_to_another_window(window, paste, monkeypatch):
+    """Outil au premier plan (ou aucune fenetre) : refus, jamais de frappe
+    dans la derniere fenetre de travail."""
+    window._last_foreground = 1002
+    monkeypatch.setattr(w32_backend(), "belongs_to_process",
+                        lambda hwnd, pid: hwnd == 4242)
+    assert paste("secret", hwnd=4242) == []
+    assert paste("secret", hwnd=0) == []
+    assert "hors d'une fenêtre cible" in window.log_edit.toPlainText()
+
+
+def w32_backend():
+    from keyboard import backend
+    return backend
+
+
+def test_paste_hotkey_is_first_in_options_and_persists(window, qapp,
+                                                       isolated_settings):
+    from PySide6.QtWidgets import QLabel
+    from core.hotkeys import ACTION_PASTE_CLIPBOARD, APP_ACTIONS
+    from ui.options_dialog import OptionsDialog
+    assert APP_ACTIONS[0] == ACTION_PASTE_CLIPBOARD
+    dialog = OptionsDialog("light", "x.enc")
+    labels = [w.text() for w in dialog.findChildren(QLabel)]
+    paste_i = labels.index("Coller le presse-papiers (frappe) :")
+    assert paste_i < labels.index("Cibler la fenêtre active :")
+    assert window.set_app_hotkey(ACTION_PASTE_CLIPBOARD, 0x0002 | 0x0008,
+                                 0x56) is None      # Ctrl+Win+V
+    assert window._settings.value(
+        f"hotkeys/{ACTION_PASTE_CLIPBOARD}_vk", type=int) == 0x56
+
+
+@pytest.mark.parametrize("mods,vk", [(0x2, 0x43), (0x2, 0x56), (0x2, 0x58),
+                                     (0x6, 0x56), (0x4, 0x2D), (0x2, 0x2D)])
+def test_copy_paste_shortcuts_are_refused_as_hotkeys(window, mods, vk):
+    """Ctrl+C / Ctrl+V... confisques partout, dont le Ctrl+C qui precede
+    l'action Coller."""
+    from core.hotkeys import ACTION_PASTE_CLIPBOARD
+    reason = window.set_app_hotkey(ACTION_PASTE_CLIPBOARD, mods, vk)
+    assert reason is not None and "copier / coller" in reason
+
+
+def test_quick_entry_repr_hides_text():
+    assert "s3cr3t" not in repr(QuickEntry(label="a", text="s3cr3t"))
+
+
+def test_controller_releases_tokens_after_stop(window):
+    from keyboard.engine import Token
+    window.controller._tokens = [Token("char", "x", False, 0, 1)]
+    window.controller._set_state("sending")
+    window.controller.stop()
+    assert window.controller._tokens == []

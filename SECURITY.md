@@ -27,7 +27,8 @@ ci-dessous sont des exigences du projet, vérifiées par la suite de tests
 | Pas de coffre corrompu | Écriture atomique : fichier temporaire exclusif, `fsync`, relecture, puis renommage. |
 | Pas d'écrasement | Création d'un coffre et « Enregistrer sous » par renommage exclusif : un fichier existant n'est jamais remplacé. |
 | Accès limité au fichier | DACL NTFS protégée : votre compte, SYSTEM et Administrateurs uniquement (sur NTFS). |
-| Pas de fuite annexe | Jamais de secret dans le journal, le registre (`QSettings`), un message d'erreur, ni le presse-papiers (jamais utilisé). |
+| Pas de fuite annexe | Jamais de secret dans le journal, le registre (`QSettings`), un message d'erreur, ni le presse-papiers. |
+| Presse-papiers jamais écrit | Lu seulement quand vous pressez le raccourci « Coller », puis tapé ; jamais journalisé. Caractères de contrôle et invisibles refusés, pas d'ENTRÉE sur la dernière ligne, double appui pour plusieurs lignes, jamais de frappe dans une autre fenêtre que celle au premier plan. |
 | Frappe au bon endroit | Ciblage par handle de fenêtre ; pause automatique si le focus quitte la cible. |
 
 Aucune connexion réseau : l'application n'a ni serveur, ni télémétrie, ni
@@ -51,6 +52,11 @@ mise à jour automatique.
   deux sessions — le dernier qui enregistre l'emporte.
 - **Copies** : « Enregistrer sous » crée une copie avec la même clé ; changer
   plus tard le master password d'un coffre ne change pas celui des copies.
+- **Ce que vous copiez** : le presse-papiers de Windows est lisible par les
+  autres programmes de votre session et conservé dans l'historique (Win+V),
+  voire synchronisé si vous l'avez activé. L'action « Coller » ne l'écrit
+  pas, mais ne peut pas protéger ce que vous y avez mis : pour un mot de
+  passe récurrent, préférez une entrée d'envoi rapide (coffre chiffré).
 - **Métadonnées** : les chemins des coffres récents sont mémorisés en clair
   dans le registre (`HKCU\Software\SendToConsole`). Ce ne sont que des
   chemins, jamais des secrets, mais un nom de dossier peut être parlant.

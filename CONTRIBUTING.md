@@ -30,7 +30,9 @@ docs/          site GitHub Pages
   interface vers les secrets. `LocalEncryptedProvider` (fichier chiffré) et
   `MemoryProvider` (volatil) l'implémentent ; d'autres sources (KeePass,
   Vaultwarden) pourront s'y brancher sans toucher à l'interface ni au moteur.
-- **Injection** : clavier uniquement, jamais le presse-papiers. `SendInput`
+- **Injection** : clavier uniquement ; l'outil n'écrit jamais dans le
+  presse-papiers (l'action « Coller » le lit seulement, dans
+  `src/ui/clipboard.py`, et `src/core/paste.py` valide le texte). `SendInput`
   par scancode via `ctypes` ; AltGr = Ctrl gauche + Alt droit étendu (0xE038).
 - **Ciblage** par handle de fenêtre (HWND), garde-fou de focus.
 - **Palette flottante** : ne prend jamais le focus (`WS_EX_NOACTIVATE`),
@@ -41,8 +43,8 @@ docs/          site GitHub Pages
 ## Règles de sécurité (non négociables)
 
 Voir [SECURITY.md](SECURITY.md). En résumé : jamais de secret en clair sur
-disque, dans un journal, un `print`, un `repr`, `QSettings` ou le
-presse-papiers ; écriture du coffre atomique ; tout changement de format =
+disque, dans un journal, un `print`, un `repr` ou `QSettings`, et aucune
+écriture dans le presse-papiers (lecture seule dans `src/ui/clipboard.py`) ; écriture du coffre atomique ; tout changement de format =
 nouvelle `FORMAT_VERSION` + migration testée, sans jamais casser un coffre
 existant.
 

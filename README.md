@@ -46,6 +46,10 @@ exactement ce qu'aurait tapé un clavier physique.
 - **Envoi rapide** : des entrées courtes (mots de passe, licences, commandes)
   associées à un **raccourci clavier global**, utilisable même quand le focus
   est dans la console distante.
+- **Coller par frappe** : copiez normalement (Ctrl+C), cliquez dans la
+  console, pressez votre raccourci « Coller » : le texte copié y est **tapé**,
+  même là où le collage est bloqué. Plusieurs lignes : deux appuis pour
+  confirmer ; caractères de contrôle refusés.
 - **Palette flottante** : un clic sur une entrée l'envoie, sans jamais voler
   le focus de la console.
 - **Dispositions clavier** : caractères AltGr (`@ # € | \ ~ { } [ ]`),
@@ -95,7 +99,8 @@ Le guide complet est sur le **[site de documentation](https://kenny3231.github.i
 ## Sécurité
 
 - Aucun secret en clair sur le disque, dans les journaux, le registre ou le
-  presse-papiers. Le presse-papiers n'est jamais utilisé.
+  presse-papiers. L'outil n'écrit jamais dans le presse-papiers : il le lit
+  seulement quand vous pressez le raccourci « Coller ».
 - Coffre chiffré et authentifié (un fichier altéré est rejeté), écriture
   atomique, droits NTFS restreints à votre compte.
 - Un coffre existant n'est jamais écrasé.

@@ -11,7 +11,10 @@ Structure reprise du script PowerShell d'origine :
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -26,11 +29,13 @@ from PySide6.QtWidgets import (
 )
 
 from core.hotkeys import (
-    ACTION_CAPTURE_TARGET, ACTION_LABELS, ACTION_TOGGLE_PALETTE, HotkeyManager,
+    ACTION_CAPTURE_TARGET, ACTION_LABELS, ACTION_PASTE_CLIPBOARD,
+    ACTION_TOGGLE_PALETTE, APP_ACTIONS, HotkeyManager,
     format_hotkey, hotkey_owner, unsafe_hotkey_reason,
 )
 from core.inject_controller import InjectController
 from core.models import QuickEntry
+from core.paste import EMPTY_REASON, PastePlan, prepare_paste
 from keyboard import backend as w32
 from keyboard.engine import METHOD_SCANCODE, build_tokens
 from keyboard.layout_converter import MODE_LAYOUT, MODE_NONE, LayoutConverter
@@ -48,7 +53,9 @@ from ui import icons
 from ui.theme import LIGHT, apply_theme, mark_secondary, token as theme_token
 
 APP_TITLE = "SendToConsole"
-APP_VERSION = "0.6.6"
+APP_VERSION = "0.7.0"
+#: Délai (s) pour confirmer par un second appui le collage de plusieurs lignes.
+PASTE_CONFIRM_S = 5
 # Échantillon de l'aperçu de conversion (jamais le contenu réel : secret possible).
 PREVIEW_SAMPLE = "azerty AZERTY 0123 @#|\\{}[]~`^¨éèàùç€"
 
@@ -113,8 +120,13 @@ class MainWindow(QMainWindow):
             action: (
                 int(self._settings.value(f"hotkeys/{action}_mods", 0, type=int)),
                 int(self._settings.value(f"hotkeys/{action}_vk", 0, type=int)))
-            for action in (ACTION_CAPTURE_TARGET, ACTION_TOGGLE_PALETTE)
+            for action in APP_ACTIONS
         }
+        # Collage multi-ligne en attente de confirmation : (empreinte HMAC,
+        # hwnd, echeance). Cle aleatoire propre a la session : l'empreinte
+        # ne permet pas de retrouver le texte hors de ce processus.
+        self._paste_pending: Optional[tuple[bytes, int, float]] = None
+        self._paste_key = os.urandom(32)
 
         saved_orientation = self._settings.value("palette/orientation", "vertical")
         self.palette_window = QuickPalette(orientation=str(saved_orientation))
@@ -1281,10 +1293,81 @@ class MainWindow(QMainWindow):
         # d'Alt, la cible activerait sa barre de menus et l'envoi suivant
         # perdrait ses premiers caracteres. Masque Ctrl + relachement.
         w32.release_held_modifiers()
-        if action == ACTION_CAPTURE_TARGET:
+        if action == ACTION_PASTE_CLIPBOARD:
+            # Hors du filtre natif (WM_HOTKEY) : lire le presse-papiers peut
+            # bloquer quand son proprietaire differe le rendu (RDP, Office).
+            # La fenetre visee est deja relevee, le report est sans risque.
+            QTimer.singleShot(0, lambda h=hwnd: self._paste_clipboard(h))
+        elif action == ACTION_CAPTURE_TARGET:
             self._capture_window(hwnd, from_hotkey=True)
         elif action == ACTION_TOGGLE_PALETTE:
             self._toggle_palette()
+
+    def _paste_clipboard(self, hwnd: int, retried: bool = False) -> None:
+        """« Coller » la ou le vrai collage est bloque : le texte copie
+        (Ctrl+C) est TAPE dans la fenetre ou le raccourci a ete presse, par
+        le meme chemin qu'une entree d'envoi rapide (conversion clavier,
+        garde-fou de focus, Pause/Stop). Lecture seule du presse-papiers ;
+        le texte est traite comme un secret (jamais affiche ni journalise).
+
+        Garde-fous (une frappe n'a pas les protections d'un vrai collage) :
+        jamais de repli sur une autre fenetre, caracteres de controle
+        refuses, pas d'ENTREE sur la derniere ligne, et un texte de
+        plusieurs lignes (chacune validee par ENTREE) demande un second
+        appui du raccourci."""
+        if not hwnd or w32.belongs_to_process(hwnd, self._own_pid):
+            # Contrairement a la palette, aucun repli sur la derniere fenetre
+            # de travail : le contenu (souvent un secret) partirait dans une
+            # fenetre que l'operateur ne regarde pas.
+            self._refuse_paste("raccourci pressé hors d'une fenêtre cible")
+            return
+        from ui.clipboard import read_clipboard_text
+        raw = read_clipboard_text()
+        if not raw and not retried:
+            # Presse-papiers peut-etre verrouille un instant par une autre
+            # application : une seconde lecture avant de conclure « vide ».
+            QTimer.singleShot(
+                120, lambda: self._paste_clipboard(hwnd, retried=True))
+            return
+        plan, reason = prepare_paste(raw)
+        del raw
+        if plan is None:
+            self._refuse_paste(reason or EMPTY_REASON)
+            return
+        if plan.lines > 1 and not self._confirm_multiline_paste(plan, hwnd):
+            return
+        entry = QuickEntry(label="Presse-papiers", text=plan.text, secret=True,
+                           final_enter=False)
+        self._quick_send(entry, countdown=0, hwnd=hwnd)
+
+    def _refuse_paste(self, reason: str) -> None:
+        """Refus visible meme fenetre cachee (bulle du tray) : l'operateur
+        regarde sa console, pas l'outil."""
+        self._deny(reason)
+        self._notify(f"Collage refusé : {reason}", from_hotkey=True)
+
+    def _confirm_multiline_paste(self, plan: PastePlan, hwnd: int) -> bool:
+        """Plusieurs lignes = plusieurs commandes executees (ENTREE apres
+        chacune) : premier appui = avertissement, second appui dans le delai,
+        meme fenetre et meme texte = frappe. Seule une empreinte HMAC (cle
+        aleatoire de la session) du texte est gardee, jamais le texte."""
+        digest = hmac.new(self._paste_key, plan.text.encode("utf-8"),
+                          hashlib.sha256).digest()
+        now = time.monotonic()
+        pending = self._paste_pending
+        self._paste_pending = None
+        if (pending is not None and hmac.compare_digest(pending[0], digest)
+                and pending[1] == hwnd and now <= pending[2]):
+            return True
+        self._paste_pending = (digest, hwnd, now + PASTE_CONFIRM_S)
+        message = (f"{plan.lines} lignes à coller : chaque ligne sera validée "
+                   "par ENTRÉE. Presse de nouveau le raccourci dans les "
+                   f"{PASTE_CONFIRM_S} s pour confirmer.")
+        self._log(f"Collage de {plan.lines} lignes en attente de confirmation.",
+                  "WARN")
+        self.status_label.setText(message)
+        self._notify(message, from_hotkey=True)
+        return False
 
     def register_app_hotkeys(self) -> None:
         """A appeler une fois le HWND attache (main.py)."""

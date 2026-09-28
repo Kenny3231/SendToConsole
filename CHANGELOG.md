@@ -3,6 +3,24 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.0] - 2026-09-28
+
+### Ajouté
+- **Coller par frappe** : nouveau raccourci global « Coller le presse-papiers
+  (frappe) », en tête des raccourcis dans les options. Copiez normalement
+  (Ctrl+C), cliquez dans la console, pressez le raccourci : le texte copié y
+  est tapé, même là où le collage est bloqué.
+- Garde-fous : double appui pour un texte de plusieurs lignes, pas d'ENTRÉE
+  sur la dernière ligne, caractères de contrôle et invisibles refusés, aucune
+  frappe si l'outil a le focus, refus signalés par une bulle.
+
+### Sécurité
+- Le presse-papiers n'est jamais écrit : il est seulement lu, au raccourci.
+  Contenu jamais journalisé, séquence de frappe libérée en fin d'envoi, texte
+  des entrées exclu de leur représentation (`repr`).
+- Ctrl+C, Ctrl+V, Ctrl+X et variantes ne peuvent plus être choisis comme
+  raccourcis de l'outil (ils seraient confisqués dans toutes les applications).
+
 ## [0.6.6] - 2026-09-28
 
 ### Corrigé
@@ -49,5 +67,6 @@ Première version publique.
 - Releases construites par la CI, avec empreintes SHA-256 et attestation de
   provenance.
 
+[0.7.0]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.7.0
 [0.6.6]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.6.6
 [0.6.5]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.6.5

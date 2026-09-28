@@ -76,3 +76,19 @@ def qapp():
     if app is not None and not isinstance(app, QApplication):
         pytest.skip("Une QCoreApplication existe deja dans cette session.")
     yield app or QApplication([])
+
+
+@pytest.fixture(autouse=True)
+def _clipboard_is_never_written(monkeypatch):
+    """Garde-fou d'execution : l'outil ne doit JAMAIS ecrire dans le
+    presse-papiers (lecture seule, action « Coller »). Toute ecriture pendant
+    un test fait echouer ce test."""
+    try:
+        from PySide6.QtGui import QClipboard
+    except ImportError:
+        return
+
+    def _forbidden(*_args, **_kwargs):
+        raise AssertionError("ecriture dans le presse-papiers interdite")
+    for name in ("setText", "setMimeData", "setImage", "setPixmap", "clear"):
+        monkeypatch.setattr(QClipboard, name, _forbidden)

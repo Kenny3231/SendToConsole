@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget,
 )
 
-from core.hotkeys import ACTION_CAPTURE_TARGET, ACTION_LABELS, ACTION_TOGGLE_PALETTE
+from core.hotkeys import ACTION_LABELS, APP_ACTIONS
 from keyboard.engine import METHOD_SCANCODE, METHOD_UNICODE
 from ui.hotkey_edit import HotkeyEdit
 from ui.theme import DARK, LIGHT, mark_secondary
@@ -107,8 +107,7 @@ class OptionsDialog(QDialog):
         shortcuts_layout = QGridLayout(shortcuts)
         app_hotkeys = app_hotkeys or {}
         self.hotkey_edits: dict[str, HotkeyEdit] = {}
-        for row, action in enumerate((ACTION_CAPTURE_TARGET,
-                                      ACTION_TOGGLE_PALETTE)):
+        for row, action in enumerate(APP_ACTIONS):
             mods, vk = app_hotkeys.get(action, (0, 0))
             edit = HotkeyEdit(mods, vk)
             edit.hotkey_changed.connect(
@@ -121,12 +120,19 @@ class OptionsDialog(QDialog):
             self.hotkey_edits[action] = edit
         shortcuts_layout.setColumnStretch(1, 1)
 
+        help_row = len(APP_ACTIONS)
         shortcuts_help = QLabel(
             "Actifs même dans la console distante. Clique dans un champ puis "
-            "presse la combinaison (avec au moins Ctrl, Alt, Maj ou Win).")
+            "presse la combinaison (avec au moins Ctrl, Alt, Maj ou Win).\n"
+            "Coller le presse-papiers : copie le texte (Ctrl+C), clique dans "
+            "la fenêtre cible puis presse ce raccourci : le texte y est tapé "
+            "au clavier, même là où le collage est bloqué. Plusieurs lignes : "
+            "presse deux fois (chaque ligne est validée par ENTRÉE). Pour un "
+            "mot de passe récurrent, préfère une entrée d'envoi rapide : ce "
+            "que tu copies reste dans l'historique Windows (Win+V).")
         shortcuts_help.setWordWrap(True)
         shortcuts_help.setObjectName("hintLabel")
-        shortcuts_layout.addWidget(shortcuts_help, 2, 0, 1, 3)
+        shortcuts_layout.addWidget(shortcuts_help, help_row, 0, 1, 3)
 
         # Combinaison enregistree dans les reglages mais refusee par Windows
         # (prise par une autre application) : elle n'est PAS active.
@@ -134,7 +140,7 @@ class OptionsDialog(QDialog):
         self.refused_label.setWordWrap(True)
         self.refused_label.setObjectName("hintLabel")
         self.refused_label.setProperty("warn", True)
-        shortcuts_layout.addWidget(self.refused_label, 3, 0, 1, 3)
+        shortcuts_layout.addWidget(self.refused_label, help_row + 1, 0, 1, 3)
         self.set_refused_actions(refused_actions or set())
         layout.addWidget(shortcuts)
 
@@ -221,9 +227,7 @@ class OptionsDialog(QDialog):
         self._fit_height()
 
     def set_refused_actions(self, refused: set[str]) -> None:
-        names = [ACTION_LABELS[a] for a in (ACTION_CAPTURE_TARGET,
-                                            ACTION_TOGGLE_PALETTE)
-                 if a in refused]
+        names = [ACTION_LABELS[a] for a in APP_ACTIONS if a in refused]
         if names:
             self.refused_label.setText(
                 "⚠ Inactif, déjà pris par une autre application : "

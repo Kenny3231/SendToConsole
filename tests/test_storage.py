@@ -334,10 +334,15 @@ def _acl_sids(path):
     cmd = ("(Get-Acl -LiteralPath $env:STC_P).GetAccessRules($true, $false, "
            "[System.Security.Principal.SecurityIdentifier]) | "
            "ForEach-Object { $_.IdentityReference.Value }")
-    out = subprocess.run(["powershell", "-NoProfile", "-Command", cmd],
-                         capture_output=True, text=True,
-                         env={**os.environ, "STC_P": str(path)}).stdout
-    return set(out.split())
+    # Sans PSModulePath : lance depuis PowerShell 7 (runner GitHub Actions),
+    # Windows PowerShell 5.1 heriterait de ses chemins de modules et ne
+    # chargerait pas Get-Acl (sortie vide, test faussement en echec).
+    env = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
+    env["STC_P"] = str(path)
+    result = subprocess.run(["powershell", "-NoProfile", "-Command", cmd],
+                            capture_output=True, text=True, env=env)
+    assert result.returncode == 0, result.stderr
+    return set(result.stdout.split())
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="ACL NTFS")

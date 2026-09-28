@@ -1,7 +1,7 @@
 """
 palette.py - Palette flottante des entrées d'envoi rapide.
 
-Contrainte centrale, heritee du script PowerShell d'origine (historique git 68f1fc4) : cette fenêtre ne doit JAMAIS
+Contrainte centrale, heritee du script PowerShell d'origine : cette fenêtre ne doit JAMAIS
 prendre le focus. Sans cela, cliquer un bouton de la palette activerait la
 palette, donc sortirait le curseur du champ de saisie de la console -
 exactement ce qu'on cherche a eviter.

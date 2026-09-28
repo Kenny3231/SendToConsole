@@ -1,7 +1,7 @@
 """
 win32_api.py - Moteur d'injection clavier bas niveau (SendInput/scancode).
 
-Porte depuis le script PowerShell d'origine (historique git 68f1fc4 : classe C# embarquee
+Porte depuis le script PowerShell d'origine (classe C# embarquee
 ConsoleInjectWin32). Toute la logique AltGr, conversion de disposition
 clavier et ciblage de fenetre par HWND est reprise du script PowerShell
 d'origine - s'y referer avant de modifier cette logique.

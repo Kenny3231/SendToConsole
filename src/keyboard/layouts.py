@@ -1,5 +1,5 @@
 """Dispositions clavier connues (KLID Windows), portees de $script:Layouts
-dans le script PowerShell d'origine (historique git 68f1fc4)."""
+dans le script PowerShell d'origine."""
 
 from __future__ import annotations
 

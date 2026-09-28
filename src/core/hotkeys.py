@@ -2,7 +2,7 @@
 hotkeys.py - Raccourcis clavier GLOBAUX (RegisterHotKey).
 
 Globaux = ils repondent meme quand le focus est dans la console distante,
-ce qui est tout l'interet ici. Porte de l'onglet 5 du script PowerShell d'origine (git 68f1fc4), ou un
+ce qui est tout l'interet ici. Porte de l'onglet 5 du script PowerShell d'origine, ou un
 HotkeySink (NativeWindow) empilait les WM_HOTKEY.
 
 En PySide6 on n'a pas besoin d'une fenetre cachee dedidee : les raccourcis

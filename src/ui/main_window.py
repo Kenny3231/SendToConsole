@@ -1,7 +1,7 @@
 """
 main_window.py - Fenetre principale.
 
-Structure reprise du script PowerShell d'origine (historique git 68f1fc4) :
+Structure reprise du script PowerShell d'origine :
   1. Fenêtre cible (enumeration par HWND, filtre, capture)
   Onglet "Contenu"      : fichier ou saisie directe, envoi ligne par ligne
   Onglet "Clavier cible": disposition de la console distante

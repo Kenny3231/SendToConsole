@@ -1,7 +1,7 @@
 """
 engine.py - Construction et envoi des jetons de frappe.
 
-Porte de Build-Tokens / Send-Token (script PowerShell d'origine, historique git 68f1fc4). Cette version propose un
+Porte de Build-Tokens / Send-Token (script PowerShell d'origine). Cette version propose un
 envoi bloquant (send_all_blocking), reserve au test CLI. L'UI PySide6 utilise
 InjectController (src/core/inject_controller.py), pilote par QTimer, sur le
 meme principe que le Timer WinForms d'origine ($timer.Add_Tick) : l'interface

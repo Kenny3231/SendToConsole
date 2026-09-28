@@ -6,7 +6,7 @@ caracteres. Le caractere qui arrive vaut :
 
     disposition_cible( scancode_produit_par_la_disposition_locale )
 
-Deux modes en V1 (le 3e du script PowerShell d'origine (historique git 68f1fc4), la table calibree empiriquement,
+Deux modes en V1 (le 3e du script PowerShell d'origine, la table calibree empiriquement,
 viendra plus tard) :
 
   NONE   : aucune conversion. Correct seulement si la disposition locale et

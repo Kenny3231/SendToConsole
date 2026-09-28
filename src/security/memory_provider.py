@@ -1,7 +1,7 @@
 """
 memory_provider.py - Entrees d'envoi rapide en memoire uniquement.
 
-C'est le comportement du script PowerShell d'origine (historique git 68f1fc4) : les entrees vivent le temps
+C'est le comportement du script PowerShell d'origine : les entrees vivent le temps
 de la session, rien n'est ecrit sur disque, tout disparait a la fermeture.
 Permet d'utiliser l'outil sans saisir de master password - pratique sur un
 poste qui n'est pas le sien, ou pour un usage ponctuel.

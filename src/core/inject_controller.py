@@ -1,6 +1,6 @@
 """
 inject_controller.py - Envoi non bloquant des jetons de frappe, pilote par
-QTimer : equivalent PySide6 du Timer WinForms $timer.Add_Tick du script PowerShell d'origine (historique git 68f1fc4).
+QTimer : equivalent PySide6 du Timer WinForms $timer.Add_Tick du script PowerShell d'origine.
 Memes etats (idle / countdown / resuming / sending / paused) et meme
 garde-fou : pause automatique si le focus quitte la fenetre cible.
 

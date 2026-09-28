@@ -3,7 +3,7 @@
 Une QuickEntry = une entree d'envoi rapide : un libelle, le texte a taper
 (souvent un mot de passe), un raccourci clavier global optionnel, et le
 choix d'envoyer ENTREE apres. C'est la structure de l'onglet 5 du script
-script PowerShell d'origine (historique git 68f1fc4) - pas une notion de "profil".
+script PowerShell d'origine - pas une notion de "profil".
 """
 
 from __future__ import annotations

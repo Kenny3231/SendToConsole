@@ -46,8 +46,11 @@ def test_second_launch_asks_first_to_show(qapp, name):
             f"sys.exit(0 if SingleInstance({name!r}).notify_existing(2000) else 3)")
     proc = subprocess.Popen([sys.executable, "-c", code])
     try:
-        assert _wait_for(qapp, lambda: shown == [1], timeout_ms=10000)
-        assert proc.wait(timeout=10) == 0
+        # Delai large : sur un runner de CI froid, le second processus met
+        # plusieurs secondes a importer PySide6 avant de se connecter.
+        activated = _wait_for(qapp, lambda: shown == [1], timeout_ms=45000)
+        assert activated, f"aucune activation (relance : code {proc.poll()})"
+        assert proc.wait(timeout=30) == 0
     finally:
         first.close()
         if proc.poll() is None:

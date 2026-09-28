@@ -54,13 +54,16 @@ class SingleInstance(QObject):
     def notify_existing(self, timeout_ms: int = 500) -> bool:
         """Demande a l'instance deja lancee de s'afficher. Rend True si elle
         a repondu (l'appelant doit alors s'arreter)."""
+        # Tout est pret AVANT la connexion : l'instance lancee n'attend le
+        # message que brievement, un import entre connexion et ecriture
+        # (disque froid) le lui faisait manquer.
+        from keyboard import backend as w32
         socket = QLocalSocket()
         socket.connectToServer(self.name)
         if not socket.waitForConnected(timeout_ms):
             return False
         # Autorise l'instance existante a passer au premier plan (Windows
         # refuse sinon qu'un processus d'arriere-plan s'active lui-meme).
-        from keyboard import backend as w32
         w32.allow_foreground_switch()
         socket.write(SHOW_MESSAGE)
         socket.flush()

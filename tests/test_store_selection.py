@@ -255,3 +255,12 @@ def test_save_as_refuses_existing_file_and_keeps_path(tmp_path, fast_kdf):
     assert provider.path == tmp_path / "c.enc"
     assert [e.label for e in provider.load()] == ["x"]
     assert (tmp_path / "a.enc").exists()
+
+
+def test_add_store_item_without_chooser_raises(mpd, tmp_path):
+    """Garde explicite (ex-assert) : sans selecteur, erreur claire."""
+    from security.local_encrypted import LocalEncryptedProvider
+    dialog = mpd.MasterPasswordDialog(
+        LocalEncryptedProvider(tmp_path / "entries.enc"), first_run=True)
+    with pytest.raises(RuntimeError):
+        dialog._add_store_item(tmp_path / "autre.enc")

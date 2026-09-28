@@ -123,7 +123,11 @@ def send_token(token: Token, hkl_target: int, allow_unicode: bool = True,
     if token.kind == "tab":
         return w32.send_scan(w32.SC_TAB, False)
 
-    assert token.ch is not None
+    if token.ch is None:
+        # Jeton caractere sans caractere : jamais produit par build_tokens,
+        # mais un assert disparaitrait en mode optimise (-O). Compte comme
+        # non tape plutot que de planter ou d'envoyer n'importe quoi.
+        return False
 
     if method == METHOD_UNICODE:
         if w32.send_char_unicode(token.ch):

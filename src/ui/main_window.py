@@ -48,7 +48,7 @@ from ui import icons
 from ui.theme import LIGHT, apply_theme, mark_secondary, token as theme_token
 
 APP_TITLE = "SendToConsole"
-APP_VERSION = "0.6.5"
+APP_VERSION = "0.6.6"
 # Échantillon de l'aperçu de conversion (jamais le contenu réel : secret possible).
 PREVIEW_SAMPLE = "azerty AZERTY 0123 @#|\\{}[]~`^¨éèàùç€"
 
@@ -122,6 +122,10 @@ class MainWindow(QMainWindow):
         self.palette_window.orientation_changed.connect(
             lambda value: self._settings.setValue("palette/orientation", value))
         self.palette_window.visibility_changed.connect(self._sync_palette_button)
+        self.palette_window.no_activate_failed.connect(lambda: self._log(
+            "Palette : Windows a refusé le mode « sans focus » ; un clic sur "
+            "la palette peut sortir le curseur du champ de la console. "
+            "Préférez les raccourcis globaux.", "WARN"))
 
         self._build_ui()
         self._refresh_windows()

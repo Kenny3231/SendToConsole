@@ -3,6 +3,23 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.6.6] - 2026-09-28
+
+### Corrigé
+- Palette flottante : si Windows refuse le mode « sans focus », un
+  avertissement apparaît désormais dans le Journal (l'échec passait
+  inaperçu et la palette pouvait voler le focus de la console).
+- Détection d'instance unique : la relance ne pouvait plus manquer son
+  message sur un disque lent.
+- Robustesse : gardes explicites à la place d'`assert`, seules les erreurs
+  attendues sont ignorées lors de la liste des processus (analyse bandit).
+- `SHA256SUMS.txt` des releases en fins de ligne LF (`sha256sum -c`).
+
+### Dépendances
+- PyInstaller 6.22.3, pyinstaller-hooks-contrib 2026.7 ; outils de
+  développement épinglés. La CI construit désormais l'exécutable à chaque
+  modification.
+
 ## [0.6.5] - 2026-09-28
 
 Première version publique.
@@ -32,4 +49,5 @@ Première version publique.
 - Releases construites par la CI, avec empreintes SHA-256 et attestation de
   provenance.
 
+[0.6.6]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.6.6
 [0.6.5]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.6.5

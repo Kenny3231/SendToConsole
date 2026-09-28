@@ -189,14 +189,15 @@ class MasterPasswordDialog(QDialog):
 
     def _add_store_item(self, path: Path) -> int:
         """Ajoute `path` à la liste s'il n'y est pas ; rend son index."""
-        assert self.store_combo is not None
-        for index in range(self.store_combo.count()):
-            if same_path(self.store_combo.itemData(index), path):
+        combo = self.store_combo
+        if combo is None:
+            raise RuntimeError("Sélecteur de coffre absent (choose_store=False).")
+        for index in range(combo.count()):
+            if same_path(combo.itemData(index), path):
                 return index
-        self.store_combo.addItem(self._item_text(path), str(path))
-        index = self.store_combo.count() - 1
-        self.store_combo.setItemData(index, str(path),
-                                     Qt.ItemDataRole.ToolTipRole)
+        combo.addItem(self._item_text(path), str(path))
+        index = combo.count() - 1
+        combo.setItemData(index, str(path), Qt.ItemDataRole.ToolTipRole)
         return index
 
     def _on_store_index(self, index: int) -> None:

@@ -213,7 +213,8 @@ def _process_names() -> dict[int, str]:
     for p in psutil.process_iter(["pid", "name"]):
         try:
             names[p.info["pid"]] = p.info["name"]
-        except Exception:
+        except psutil.Error:
+            # Processus termine ou protege pendant l'enumeration : ignore.
             continue
     return names
 

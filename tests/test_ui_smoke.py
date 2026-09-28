@@ -560,3 +560,63 @@ def test_save_as_on_existing_file_offers_to_open_it(window, tmp_path,
     window._save_store_as()
     assert (tmp_path / "pris.enc").read_bytes() == before
     assert window.provider.path == tmp_path / "courant.enc"
+
+
+def test_regression_palette_no_activate_failure_is_logged(window, monkeypatch):
+    """Si Windows refusait WS_EX_NOACTIVATE, l'echec passait inapercu (les
+    appels Win32 rendent 0 sans exception) et la palette volait le focus."""
+    import ui.palette as pal
+    monkeypatch.setattr(pal, "_is_native_windows", lambda: True)
+    monkeypatch.setattr(pal, "set_no_activate_style", lambda hwnd: False)
+    window.palette_window._apply_no_activate()
+    window.palette_window._apply_no_activate()      # un seul avertissement
+    log = window.log_edit.toPlainText()
+    assert log.count("mode « sans focus »") == 1
+    assert "WARN" in [line.split()[1] for line in log.splitlines()
+                      if "sans focus" in line][0]
+
+
+def test_palette_no_activate_success_is_silent(window, monkeypatch):
+    import ui.palette as pal
+    calls = []
+    monkeypatch.setattr(pal, "_is_native_windows", lambda: True)
+    monkeypatch.setattr(pal, "set_no_activate_style",
+                        lambda hwnd: calls.append(hwnd) or True)
+    window.palette_window._apply_no_activate()
+    assert calls and "sans focus" not in window.log_edit.toPlainText()
+
+
+@pytest.mark.skipif(__import__("sys").platform != "win32", reason="Win32")
+def test_set_no_activate_style_on_real_hidden_window():
+    """Vrai appel Win32 sur une fenetre cachee (jamais affichee : aucun
+    effet sur le focus ni le clavier) : le style est pose ET relu."""
+    import ctypes
+    from ctypes import wintypes
+    from ui.palette import (
+        GWL_EXSTYLE, WS_EX_NOACTIVATE, set_no_activate_style)
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.CreateWindowExW.argtypes = (
+        wintypes.DWORD, wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD,
+        ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+        wintypes.HWND, wintypes.HMENU, wintypes.HINSTANCE, wintypes.LPVOID)
+    user32.CreateWindowExW.restype = wintypes.HWND
+    user32.DestroyWindow.argtypes = (wintypes.HWND,)
+    user32.GetWindowLongW.argtypes = (wintypes.HWND, ctypes.c_int)
+    user32.GetWindowLongW.restype = ctypes.c_long
+    hwnd = user32.CreateWindowExW(0, "STATIC", "stc-test", 0,
+                                  0, 0, 10, 10, None, None, None, None)
+    assert hwnd, ctypes.get_last_error()
+    try:
+        assert not user32.GetWindowLongW(hwnd, GWL_EXSTYLE) & WS_EX_NOACTIVATE
+        assert set_no_activate_style(hwnd) is True
+        assert user32.GetWindowLongW(hwnd, GWL_EXSTYLE) & WS_EX_NOACTIVATE
+    finally:
+        user32.DestroyWindow(hwnd)
+
+
+def test_set_no_activate_style_reports_failure_on_invalid_window():
+    import sys
+    if sys.platform != "win32":
+        pytest.skip("Win32")
+    from ui.palette import set_no_activate_style
+    assert set_no_activate_style(0) is False      # HWND nul : refus relu

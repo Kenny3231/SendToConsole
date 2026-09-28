@@ -98,3 +98,13 @@ def test_regression_held_modifier_swallows_letters():
     assert backend.release_held_modifiers() == ["Alt"]
     send_token(Token("char", "a", False, 15, 1), 0x040C040C)
     assert backend.sent_scan == ["a"]         # corrige apres relachement
+
+
+def test_regression_char_token_without_char_is_not_sent():
+    """Un `assert` gardait ce cas : il disparait en mode optimise (-O).
+    Le jeton est desormais compte comme non tape, sans rien envoyer."""
+    backend.sent_scan.clear()
+    backend.sent_unicode.clear()
+    token = Token(kind="char", ch=None, alt_gr=False, delay_ms=0, line=1)
+    assert send_token(token, hkl_target=0) is False
+    assert backend.sent_scan == [] and backend.sent_unicode == []

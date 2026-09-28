@@ -108,15 +108,45 @@ class DragHandle(QFrame):
         self._drag_offset = None
 
 
+def _is_native_windows() -> bool:
+    """Vraie fenêtre Windows (pas le plugin Qt offscreen des tests)."""
+    from PySide6.QtGui import QGuiApplication
+    return sys.platform == "win32" and QGuiApplication.platformName() == "windows"
+
+
+def set_no_activate_style(hwnd: int) -> bool:
+    """Ajoute WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW au HWND puis relit le style.
+    Rend True seulement si WS_EX_NOACTIVATE est effectivement actif."""
+    import ctypes
+    from ctypes import wintypes
+
+    try:
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+    except OSError:
+        return False
+    user32.GetWindowLongW.argtypes = (wintypes.HWND, ctypes.c_int)
+    user32.GetWindowLongW.restype = ctypes.c_long
+    user32.SetWindowLongW.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_long)
+    user32.SetWindowLongW.restype = ctypes.c_long
+
+    style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+    # c_long est signe : WS_EX_NOACTIVATE (bit 27) tient dans l'entier positif.
+    user32.SetWindowLongW(hwnd, GWL_EXSTYLE,
+                          style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW)
+    return bool(user32.GetWindowLongW(hwnd, GWL_EXSTYLE) & WS_EX_NOACTIVATE)
+
+
 class QuickPalette(QWidget):
     """Fenêtre flottante : un bouton par entrée, un clic = envoi."""
 
     entry_clicked = Signal(object)      # QuickEntry
     orientation_changed = Signal(str)
     visibility_changed = Signal(bool)
+    no_activate_failed = Signal()     # style « sans focus » refusé par Windows
 
     def __init__(self, orientation: str = VERTICAL, parent=None) -> None:
         super().__init__(None)   # sans parent : fenetre independante
+        self._no_activate_warned = False
         self.setWindowTitle("Envoi rapide")
         self.setObjectName("quickPalette")
         self.setWindowFlags(
@@ -464,27 +494,18 @@ class QuickPalette(QWidget):
 
     def _apply_no_activate(self) -> None:
         """Pose WS_EX_NOACTIVATE sur le HWND réel. Les drapeaux Qt seuls ne
-        suffisent pas a garantir que la fenêtre ne prend jamais le focus."""
-        if sys.platform != "win32":
+        suffisent pas a garantir que la fenêtre ne prend jamais le focus.
+
+        Un échec n'était jamais visible (les appels Win32 ne lèvent pas
+        d'exception, ils rendent 0) : le style est relu et, s'il manque,
+        `no_activate_failed` est émis une fois pour avertir l'opérateur."""
+        if not _is_native_windows():
+            return          # plugin offscreen des tests : pas de vrai HWND
+        if set_no_activate_style(int(self.winId())):
             return
-        try:
-            import ctypes
-            from ctypes import wintypes
-
-            hwnd = int(self.winId())
-            user32 = ctypes.WinDLL("user32", use_last_error=True)
-            user32.GetWindowLongW.argtypes = (wintypes.HWND, ctypes.c_int)
-            user32.GetWindowLongW.restype = ctypes.c_long
-            user32.SetWindowLongW.argtypes = (wintypes.HWND, ctypes.c_int, ctypes.c_long)
-            user32.SetWindowLongW.restype = ctypes.c_long
-
-            style = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-            user32.SetWindowLongW(
-                hwnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW)
-        except Exception:
-            # La palette reste utilisable meme si le style n'a pas pu etre
-            # pose : elle risque juste de voler le focus au clic.
-            pass
+        if not self._no_activate_warned:
+            self._no_activate_warned = True
+            self.no_activate_failed.emit()
 
     # ------------------------------------------------------------ contenu --
     def refresh(self, entries: list[QuickEntry]) -> None:

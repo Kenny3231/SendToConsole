@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Construire et publier
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write        # créer la release
+      id-token: write        # attestation de provenance (Sigstore)
+      attestations: write
+    env:
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Vérifier que le tag correspond à APP_VERSION
+        shell: pwsh
+        run: |
+          $line = Select-String -Path src/ui/main_window.py -Pattern '^APP_VERSION = "(.+)"'
+          $version = $line.Matches[0].Groups[1].Value
+          if ("v$version" -ne $env:TAG) {
+            throw "Tag $env:TAG différent de APP_VERSION ($version)."
+          }
+
+      - name: Dépendances (versions épinglées)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt pytest==9.1.1
+
+      - name: Tests
+        run: python -m pytest
+
+      - name: Construction (PyInstaller, onedir)
+        shell: pwsh
+        env:
+          STC_ONEFILE: "0"
+          STC_NO_PRUNE: "0"
+        run: |
+          python -m PyInstaller build/SendToConsole.spec --noconfirm `
+            --workpath build/SendToConsole --distpath dist
+          if (-not (Test-Path dist/SendToConsole/SendToConsole.exe)) { throw "Exécutable absent." }
+
+      - name: Assembler l'archive
+        shell: pwsh
+        run: |
+          $app = "dist/SendToConsole"
+          # Garde-fou : jamais de coffre dans une livraison.
+          if (Get-ChildItem $app -Recurse -Include *.enc, *.tmp) { throw "Coffre ou fichier temporaire dans la livraison." }
+          Copy-Item LICENSE, THIRD_PARTY_NOTICES.md, README.md, SECURITY.md $app
+          $zip = "SendToConsole-$env:TAG-win64.zip"
+          Compress-Archive -Path $app -DestinationPath $zip -CompressionLevel Optimal
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "$hash  $zip" | Out-File -Encoding ascii SHA256SUMS.txt
+          Get-Content SHA256SUMS.txt
+          "ZIP=$zip" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Attestation de provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ env.ZIP }}
+
+      - name: Notes de version (CHANGELOG)
+        shell: pwsh
+        run: |
+          $version = $env:TAG.TrimStart('v')
+          $lines = Get-Content CHANGELOG.md -Encoding utf8
+          $start = ($lines | Select-String -Pattern "^## \[$([regex]::Escape($version))\]").LineNumber
+          if (-not $start) { throw "Section [$version] absente de CHANGELOG.md." }
+          $body = @()
+          foreach ($l in $lines[$start..($lines.Count - 1)]) {
+            if ($l -match '^## \[' -or $l -match '^\[.+\]: ') { break }
+            $body += $l
+          }
+          $body += ""
+          $body += "### Vérifier le téléchargement"
+          $body += '```powershell'
+          $body += "Get-FileHash .\$env:ZIP -Algorithm SHA256   # comparer avec SHA256SUMS.txt"
+          $body += "gh attestation verify .\$env:ZIP --repo $env:GITHUB_REPOSITORY"
+          $body += '```'
+          $body | Out-File -Encoding utf8 notes.md
+
+      - name: Publier la release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:TAG $env:ZIP SHA256SUMS.txt `
+            --repo $env:GITHUB_REPOSITORY `
+            --title "SendToConsole $env:TAG" `
+            --notes-file notes.md `
+            --verify-tag

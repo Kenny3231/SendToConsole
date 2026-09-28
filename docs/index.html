@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SendToConsole — frappe simulée pour consoles distantes</title>
+  <meta name="description" content="SendToConsole tape pour vous textes et mots de passe dans les consoles distantes sans presse-papiers (iDRAC, iLO, XClarity, IPMI, noVNC, RDP). Windows, 100 % local, coffre chiffré.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f7f8fb" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11131a" media="(prefers-color-scheme: dark)">
+  <meta property="og:title" content="SendToConsole">
+  <meta property="og:description" content="Frappe clavier simulée pour les consoles distantes où le copier-coller ne passe pas.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://kenny3231.github.io/SendToConsole/assets/img/main-envoi-rapide-light.png">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="assets/icon.png" alt="" width="28" height="28">SendToConsole</a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="#fonctionnalites">Fonctionnalités</a>
+      <a href="#guide">Guide</a>
+      <a href="#securite">Sécurité</a>
+      <a href="#faq">FAQ</a>
+      <a class="nav-gh" href="https://github.com/Kenny3231/SendToConsole">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <div class="hero">
+    <div class="wrap">
+      <img class="hero-icon" src="assets/icon.png" alt="" width="88" height="88">
+      <h1>SendToConsole</h1>
+      <p class="lead">Tape pour vous textes et mots de passe dans les consoles distantes où le
+        copier-coller ne passe pas&nbsp;: iDRAC, iLO, XClarity, IPMI/SOL, noVNC, RDP.</p>
+      <div class="cta">
+        <a class="btn primary" href="https://github.com/Kenny3231/SendToConsole/releases/latest">Télécharger pour Windows</a>
+        <a class="btn" href="#guide">Lire le guide</a>
+        <a class="btn" href="https://github.com/Kenny3231/SendToConsole">Code source</a>
+      </div>
+      <p class="hero-meta">Windows 10 / 11 · Gratuit et open source (MIT) · 100 % local, aucune connexion réseau</p>
+      <div class="shot">
+        <picture>
+          <source srcset="assets/img/main-envoi-rapide-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="assets/img/main-envoi-rapide-light.png" width="820" height="640"
+               alt="Fenêtre principale de SendToConsole, onglet Envoi rapide : trois entrées avec leurs raccourcis globaux">
+        </picture>
+      </div>
+    </div>
+  </div>
+
+  <section id="pourquoi">
+    <div class="wrap two-col">
+      <div>
+        <h2>Le problème</h2>
+        <p>Les consoles d'administration à distance (KVM IP, consoles HTML5 des cartes BMC,
+          sessions RDP restreintes) refusent souvent le presse-papiers. Il faut alors retaper à la
+          main des mots de passe de 30&nbsp;caractères, des clés de licence ou des scripts
+          entiers, avec en prime les pièges des dispositions clavier&nbsp;: un <code>@</code>
+          tapé sur un poste AZERTY arrive comme un <code>2</code> sur une console QWERTY.</p>
+      </div>
+      <div>
+        <h2>La solution</h2>
+        <p>SendToConsole <strong>simule la frappe clavier</strong> vers la fenêtre de votre
+          choix, caractère par caractère, au niveau des <em>scancodes</em>&nbsp;: la console reçoit
+          exactement ce qu'aurait envoyé un clavier physique. Il gère les caractères AltGr, la
+          disposition de la console cible, et met tout en pause si la fenêtre perd le focus.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="fonctionnalites">
+    <div class="wrap">
+      <h2>Fonctionnalités</h2>
+      <p class="section-lead">Tout ce qu'il faut pour saisir vite et juste dans une console distante, sans jamais passer par le presse-papiers.</p>
+      <div class="grid">
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg></div>
+          <h3>Frappe par scancodes</h3>
+          <p>Ce que comprennent les consoles iDRAC, iLO, IPMI et les KVM. Repli Unicode pour les applications Windows ordinaires.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+          <h3>Envoi rapide par raccourci global</h3>
+          <p>Mots de passe, licences, commandes&nbsp;: chaque entrée a son raccourci, actif même quand le focus est dans la console.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+          <h3>Palette flottante</h3>
+          <p>Un clic sur une entrée l'envoie. La palette ne prend jamais le focus&nbsp;: le curseur reste dans le champ de la console.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
+          <h3>Dispositions clavier</h3>
+          <p>Caractères AltGr (<code>@ # € | \ ~ { } [ ]</code>), conversion vers la disposition de la console, détection de celle de la fenêtre visée.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M10 15V9M14 15V9"/></svg></div>
+          <h3>Garde-fou de focus</h3>
+          <p>Si la fenêtre cible perd le focus en cours d'envoi, tout se met en pause&nbsp;: rien n'est tapé ailleurs.</p>
+        </div>
+        <div class="card">
+          <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+          <h3>Coffre chiffré</h3>
+          <p>Entrées chiffrées (Fernet, PBKDF2-SHA256 à 600&nbsp;000 itérations) derrière un master password. Plusieurs coffres possibles.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="guide">
+    <div class="wrap guide">
+      <aside class="toc" aria-label="Sommaire du guide">
+        <ol>
+          <li><a href="#installer">Installer</a></li>
+          <li><a href="#coffre">Choisir un coffre</a></li>
+          <li><a href="#cible">Choisir la cible</a></li>
+          <li><a href="#texte">Envoyer du texte</a></li>
+          <li><a href="#clavier">Clavier de la console</a></li>
+          <li><a href="#rapide">Envoi rapide</a></li>
+          <li><a href="#palette">Palette flottante</a></li>
+          <li><a href="#options">Options</a></li>
+        </ol>
+      </aside>
+
+      <div>
+        <h2>Guide d'utilisation</h2>
+        <p class="section-lead">De l'installation au premier envoi en quelques minutes.</p>
+
+        <article class="step" id="installer">
+          <h3><span class="num">1</span>Installer</h3>
+          <p>Téléchargez <code>SendToConsole-&lt;version&gt;-win64.zip</code> depuis la
+            <a href="https://github.com/Kenny3231/SendToConsole/releases/latest">dernière release</a>,
+            décompressez-le dans un dossier <strong>réservé à votre compte</strong> (par exemple
+            <code>%LOCALAPPDATA%\Programs\SendToConsole</code>) et lancez <code>SendToConsole.exe</code>.
+            Aucune installation ni droit administrateur n'est nécessaire.</p>
+          <p>Vérification recommandée de l'archive&nbsp;:</p>
+<pre><code>Get-FileHash .\SendToConsole-*-win64.zip -Algorithm SHA256   # comparer avec SHA256SUMS.txt
+gh attestation verify .\SendToConsole-*-win64.zip --repo Kenny3231/SendToConsole</code></pre>
+          <div class="note"><strong>Avertissement SmartScreen</strong>L'exécutable n'est pas signé
+            numériquement&nbsp;: au premier lancement, Windows peut afficher «&nbsp;Windows a protégé votre
+            ordinateur&nbsp;». Cliquez sur «&nbsp;Informations complémentaires&nbsp;» puis «&nbsp;Exécuter quand même&nbsp;»,
+            après avoir vérifié l'archive.</div>
+        </article>
+
+        <article class="step" id="coffre">
+          <h3><span class="num">2</span>Choisir un coffre et son master password</h3>
+          <p>Au lancement, SendToConsole propose le <strong>dernier coffre utilisé</strong> et la
+            liste des coffres récents. Vous pouvez aussi&nbsp;:</p>
+          <ul>
+            <li><strong>Ouvrir…</strong> un coffre existant (fichier <code>.enc</code>), y compris dès le premier lancement&nbsp;;</li>
+            <li><strong>Nouveau…</strong> pour créer un coffre vide&nbsp;: un fichier existant n'est jamais écrasé&nbsp;;</li>
+            <li><strong>Continuer sans enregistrer</strong>&nbsp;: les entrées vivent en mémoire et disparaissent à la fermeture.</li>
+          </ul>
+          <div class="note"><strong>Le master password n'est stocké nulle part.</strong>S'il est perdu,
+            les entrées du coffre sont irrécupérables. Choisissez une phrase longue et notez-la dans
+            votre gestionnaire de mots de passe.</div>
+          <figure>
+            <picture>
+              <source srcset="assets/img/unlock-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="assets/img/unlock-light.png" width="680" height="304" loading="lazy"
+                   alt="Dialogue de déverrouillage : choix du coffre, boutons Ouvrir et Nouveau, saisie du master password">
+            </picture>
+            <figcaption>Choix du coffre et du master password au lancement.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="cible">
+          <h3><span class="num">3</span>Choisir la fenêtre cible</h3>
+          <p>L'onglet <strong>Cible</strong> liste les fenêtres ouvertes (filtrables par processus
+            ou titre). Sélectionnez la console, ou cliquez sur <strong>Capturer la fenêtre active
+            (3&nbsp;s)</strong> puis cliquez dans la console avant la fin du décompte. La disposition
+            clavier de la fenêtre est affichée, et un avertissement apparaît si elle tourne en
+            administrateur.</p>
+          <figure>
+            <picture>
+              <source srcset="assets/img/main-cible-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="assets/img/main-cible-light.png" width="820" height="640" loading="lazy"
+                   alt="Onglet Cible : liste des fenêtres avec processus, PID, handle et titre">
+            </picture>
+            <figcaption>Onglet Cible (fenêtres d'exemple).</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="texte">
+          <h3><span class="num">4</span>Envoyer du texte</h3>
+          <p>Dans l'onglet <strong>Contenu</strong>, collez votre texte ou chargez un fichier. Options&nbsp;:
+            ignorer les lignes de commentaire (<code>#</code>, <code>;</code>) et les lignes vides,
+            ajouter <kbd>Entrée</kbd> après la dernière ligne.</p>
+          <p>Réglez en bas le délai entre caractères, entre lignes et le compte à rebours, puis
+            <strong>Démarrer</strong>&nbsp;: SendToConsole ramène la console au premier plan et tape.
+            <strong>Pause</strong> et <strong>Stop</strong> restent disponibles à tout moment&nbsp;; avec
+            <strong>Garde focus</strong>, l'envoi se met en pause dès que la console perd le focus.</p>
+          <figure>
+            <picture>
+              <source srcset="assets/img/main-contenu-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="assets/img/main-contenu-light.png" width="820" height="640" loading="lazy"
+                   alt="Onglet Contenu : zone de texte avec un script d'exemple et options d'envoi">
+            </picture>
+            <figcaption>Onglet Contenu et barre d'envoi.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="clavier">
+          <h3><span class="num">5</span>Adapter le clavier à la console</h3>
+          <p>Une console distante reçoit des <em>scancodes</em> (positions de touches), pas des
+            caractères. Si elle n'utilise pas la même disposition que votre poste (serveur en
+            QWERTY US, poste en AZERTY), choisissez sa disposition dans l'onglet
+            <strong>Clavier cible</strong>&nbsp;: SendToConsole convertit le texte pour que les
+            caractères arrivent justes. <strong>Aperçu de la conversion</strong> montre le résultat
+            avant l'envoi.</p>
+          <figure>
+            <picture>
+              <source srcset="assets/img/main-clavier-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="assets/img/main-clavier-light.png" width="820" height="640" loading="lazy"
+                   alt="Onglet Clavier cible : mode de conversion et disposition de la console">
+            </picture>
+            <figcaption>Onglet Clavier cible.</figcaption>
+          </figure>
+        </article>
+
+        <article class="step" id="rapide">
+          <h3><span class="num">6</span>Envoi rapide et raccourcis globaux</h3>
+          <p>L'onglet <strong>Envoi rapide</strong> regroupe des entrées courtes&nbsp;: mots de passe,
+            clés de licence, commandes fréquentes. Chaque entrée peut&nbsp;:</p>
+          <ul>
+            <li>être <strong>masquée</strong> (mot de passe&nbsp;: jamais affichée ni journalisée)&nbsp;;</li>
+            <li>recevoir un <strong>raccourci global</strong> (par exemple <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F1</kbd>), actif même quand le focus est dans la console&nbsp;;</li>
+            <li>envoyer <kbd>Entrée</kbd> après le texte.</li>
+          </ul>
+          <p>Cliquez dans le champ de la console, pressez le raccourci&nbsp;: le texte est tapé à
+            l'endroit du curseur. Un même raccourci ne peut être attribué qu'une fois, et les
+            combinaisons qui produiraient un caractère (AltGr) sont refusées.</p>
+        </article>
+
+        <article class="step" id="palette">
+          <h3><span class="num">7</span>Palette flottante</h3>
+          <div class="figs">
+            <p>La palette affiche vos entrées en boutons, toujours au premier plan. Un clic envoie
+              l'entrée vers la dernière fenêtre utilisée <strong>sans lui voler le focus</strong>&nbsp;:
+              le curseur reste dans le champ de la console. Elle s'affiche en ligne ou en colonne,
+              et peut être montrée ou masquée par un raccourci global (Options).</p>
+            <figure style="margin:0">
+              <picture>
+                <source srcset="assets/img/palette-dark.png" media="(prefers-color-scheme: dark)">
+                <img src="assets/img/palette-light.png" width="200" height="200" loading="lazy"
+                     alt="Palette flottante avec trois boutons d'entrées">
+              </picture>
+            </figure>
+          </div>
+        </article>
+
+        <article class="step" id="options">
+          <h3><span class="num">8</span>Options</h3>
+          <p>Le bouton <strong>⚙</strong> ouvre les options&nbsp;:</p>
+          <ul>
+            <li><strong>Thème</strong> clair ou sombre&nbsp;;</li>
+            <li><strong>Méthode d'envoi</strong>&nbsp;: scancodes (consoles distantes) ou Unicode (applications Windows), et envoi d'AltGr avec ou sans Ctrl gauche&nbsp;;</li>
+            <li><strong>Raccourcis globaux d'action</strong>&nbsp;: cibler la fenêtre active, afficher / masquer la palette&nbsp;;</li>
+            <li><strong>Coffre</strong>&nbsp;: ouvrir le dossier, <strong>ouvrir un autre coffre</strong>, <strong>enregistrer sous</strong> un nouveau fichier (jamais d'écrasement), réinitialiser le master password.</li>
+          </ul>
+          <figure>
+            <picture>
+              <source srcset="assets/img/options-dark.png" media="(prefers-color-scheme: dark)">
+              <img src="assets/img/options-light.png" width="620" height="760" loading="lazy"
+                   alt="Fenêtre Options : apparence, méthode d'envoi, raccourcis globaux, coffre">
+            </picture>
+          </figure>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="securite">
+    <div class="wrap">
+      <h2>Sécurité</h2>
+      <p class="section-lead">SendToConsole manipule des mots de passe d'administration&nbsp;: la sécurité du stockage est une exigence, vérifiée par les tests.</p>
+      <div class="two-col">
+        <div>
+          <h3>Garanties</h3>
+          <ul class="check">
+            <li>Aucun secret en clair sur disque, dans les journaux, le registre ou un message d'erreur.</li>
+            <li>Le presse-papiers n'est jamais utilisé.</li>
+            <li>Coffre chiffré et authentifié (Fernet)&nbsp;: un fichier altéré est rejeté.</li>
+            <li>Clé dérivée du master password (PBKDF2-SHA256, 600&nbsp;000 itérations, sel aléatoire), jamais stockée.</li>
+            <li>Écriture atomique&nbsp;; un coffre existant n'est jamais écrasé.</li>
+            <li>Fichier restreint à votre compte (droits NTFS).</li>
+            <li>Aucune connexion réseau, aucune télémétrie.</li>
+            <li>Releases construites par la CI, avec empreintes SHA-256 et attestation de provenance.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Limites</h3>
+          <ul class="check cross">
+            <li>Un logiciel malveillant qui tourne sous votre compte peut lire la mémoire de l'application ou capter les frappes.</li>
+            <li>Les secrets déchiffrés restent en mémoire tant que l'application tourne.</li>
+            <li>Sur clé USB (FAT32/exFAT) ou partage réseau, seul le master password protège le coffre.</li>
+            <li>Un même coffre ouvert depuis deux postes&nbsp;: le dernier qui enregistre l'emporte.</li>
+          </ul>
+          <p>Détails et modèle de menace&nbsp;: <a href="https://github.com/Kenny3231/SendToConsole/blob/main/SECURITY.md">SECURITY.md</a>.
+            Une faille&nbsp;? <a href="https://github.com/Kenny3231/SendToConsole/security/advisories/new">Signalez-la en privé</a>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2>Questions fréquentes</h2>
+      <p class="section-lead">Les situations les plus courantes.</p>
+      <details>
+        <summary>Rien n'est tapé dans la console, ou un avertissement « administrateur » s'affiche</summary>
+        <p>Windows interdit la frappe simulée vers un programme lancé en administrateur si
+          SendToConsole ne l'est pas. Lancez le navigateur ou le client de console normalement,
+          ou lancez SendToConsole en administrateur aussi.</p>
+      </details>
+      <details>
+        <summary>Les caractères spéciaux arrivent faux (<code>@</code>, <code>#</code>, <code>\</code>…)</summary>
+        <p>La console n'utilise pas la même disposition clavier que votre poste. Choisissez sa
+          disposition dans l'onglet Clavier cible et vérifiez avec «&nbsp;Aperçu de la conversion&nbsp;».
+          Si une cible réagit mal à AltGr, décochez «&nbsp;AltGr = Ctrl gauche + Alt droite&nbsp;» dans
+          les options.</p>
+      </details>
+      <details>
+        <summary>Il manque des caractères quand le texte est long</summary>
+        <p>Certaines consoles web n'absorbent pas une frappe rapide. Augmentez le délai entre
+          caractères (par exemple 30 à 50&nbsp;ms) et entre lignes.</p>
+      </details>
+      <details>
+        <summary>La méthode Unicode fonctionne dans le Bloc-notes, pas dans la console</summary>
+        <p>C'est attendu&nbsp;: les consoles distantes (iDRAC, iLO, KVM) ne comprennent que les
+          scancodes. Gardez la méthode «&nbsp;Scancodes&nbsp;» pour elles.</p>
+      </details>
+      <details>
+        <summary>J'ai oublié mon master password</summary>
+        <p>Il n'est stocké nulle part&nbsp;: les entrées du coffre sont irrécupérables. Options →
+          «&nbsp;Réinitialiser le master password&nbsp;» supprime le coffre et repart d'un coffre vide.</p>
+      </details>
+      <details>
+        <summary>Où sont enregistrées mes entrées&nbsp;?</summary>
+        <p>Dans le fichier coffre choisi au lancement (par défaut <code>entries.enc</code> à côté de
+          l'exécutable). Options → «&nbsp;Ouvrir le dossier&nbsp;» y mène directement. Les réglages
+          (thème, délais, chemins des coffres récents) sont dans le registre, sans aucun secret.</p>
+      </details>
+      <details>
+        <summary>Comment utiliser un coffre par client ou sur clé USB&nbsp;?</summary>
+        <p>Créez un coffre par fichier («&nbsp;Nouveau…&nbsp;») et passez de l'un à l'autre au lancement
+          ou via Options → «&nbsp;Ouvrir un autre coffre…&nbsp;». Sur clé USB, le fichier n'a pas de
+          droits NTFS&nbsp;: la solidité du master password est alors votre seule protection.</p>
+      </details>
+    </div>
+  </section>
+
+  <section id="sources">
+    <div class="wrap">
+      <h2>Compiler depuis les sources</h2>
+      <p class="section-lead">Prérequis&nbsp;: Windows et Python 3.12.</p>
+<pre><code>git clone https://github.com/Kenny3231/SendToConsole.git
+cd SendToConsole
+py -3.12 -m pip install -r requirements-dev.txt
+py -3.12 -m pytest          # tests : clavier simulé, aucune vraie frappe
+py -3.12 src\main.py        # lancer depuis les sources
+.\build\build.ps1           # construire l'exécutable dans dist\SendToConsole\</code></pre>
+      <p>Architecture et règles de développement&nbsp;: <a href="https://github.com/Kenny3231/SendToConsole/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>SendToConsole · Licence <a href="https://github.com/Kenny3231/SendToConsole/blob/main/LICENSE">MIT</a> · © Kenny3231</span>
+    <span>
+      <a href="https://github.com/Kenny3231/SendToConsole">GitHub</a> ·
+      <a href="https://github.com/Kenny3231/SendToConsole/releases">Releases</a> ·
+      <a href="https://github.com/Kenny3231/SendToConsole/blob/main/CHANGELOG.md">Changements</a> ·
+      <a href="https://github.com/Kenny3231/SendToConsole/blob/main/THIRD_PARTY_NOTICES.md">Composants tiers</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>

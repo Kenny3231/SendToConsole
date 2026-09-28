@@ -1,0 +1,4 @@
+# Dependances du moteur d'injection clavier (cli_test.py). La partie UI
+# (PySide6) et securite (cryptography, pykeepass...) auront leurs propres
+# requirements - voir requirements.txt.
+psutil==7.2.2

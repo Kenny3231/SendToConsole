@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Faille de sécurité
+    url: https://github.com/Kenny3231/SendToConsole/security/advisories/new
+    about: Signalement privé, jamais en issue publique.

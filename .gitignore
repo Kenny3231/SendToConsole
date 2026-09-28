@@ -1,0 +1,30 @@
+# Secrets : ne JAMAIS versionner le stockage chiffre
+*.enc
+*.tmp
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Builds PyInstaller
+build/SendToConsole/
+dist/
+
+# Archives manuelles et sauvegardes
+_v*.zip
+*.bak
+
+# Outillage de travail local (assistant IA, notes internes) : jamais publie
+.claude/
+CLAUDE.md
+docs/ETAT.md
+
+# Coffres mis a l'abri par build.ps1
+.vault-stash/

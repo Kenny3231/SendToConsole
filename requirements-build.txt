@@ -1,0 +1,5 @@
+# Construction de l'executable (build.ps1 et workflow de release).
+-r requirements.txt
+pyinstaller==6.21.0
+pyinstaller-hooks-contrib==2026.6
+pillow==12.3.0

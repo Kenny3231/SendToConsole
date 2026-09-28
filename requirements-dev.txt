@@ -1,0 +1,9 @@
+# Outils de developpement / verification (tests, lint, audit).
+# Installation : py -V:3.12 -m pip install -r requirements-dev.txt
+-r requirements.txt
+pytest==9.1.1
+# Non installes lors de l'epinglage (2026-09-25) : a epingler apres install.
+pytest-cov>=5
+ruff>=0.5
+bandit>=1.7
+pip-audit>=2.7

@@ -1,0 +1,562 @@
+"""Test de fumee de l'interface : MainWindow et la palette se construisent.
+
+Qt offscreen, backend clavier factice (voir conftest.py) : aucune vraie
+fenetre affichee, aucune vraie frappe. Les reglages QSettings sont rediriges
+vers un dossier temporaire pour ne jamais toucher ceux de l'utilisateur.
+"""
+
+import pytest
+
+from core.models import QuickEntry
+from security.memory_provider import MemoryProvider
+
+
+@pytest.fixture
+def isolated_settings(tmp_path, monkeypatch):
+    """QSettings(org, app) -> fichier INI temporaire (pas le registre reel).
+
+    setDefaultFormat() ne suffit PAS : le constructeur QSettings(org, app)
+    utilise toujours NativeFormat (registre sous Windows). On remplace donc
+    la classe dans chaque module UI qui la construit."""
+    QtCore = pytest.importorskip("PySide6.QtCore")
+    ini = str(tmp_path / "settings.ini")
+
+    class _IniSettings(QtCore.QSettings):
+        def __init__(self, *args, **kwargs):
+            super().__init__(ini, QtCore.QSettings.Format.IniFormat)
+
+    try:
+        import ui.main_window
+        import ui.palette
+    except ImportError as exc:
+        pytest.skip(f"Interface Qt indisponible dans cet environnement : {exc}")
+    for module in (ui.main_window, ui.palette):
+        monkeypatch.setattr(module, "QSettings", _IniSettings)
+    yield ini
+
+
+def test_regression_settings_isolated_from_real_registry(isolated_settings):
+    """Un test UI ecrivait ui/theme dans HKCU\\Software\\SendToConsole."""
+    import ui.main_window
+    s = ui.main_window.QSettings("SendToConsole", "SendToConsole")
+    from pathlib import Path
+    assert Path(s.fileName()) == Path(isolated_settings)
+
+
+@pytest.fixture
+def window(qapp, isolated_settings):
+    try:
+        from ui.main_window import MainWindow
+    except ImportError as exc:      # libs graphiques absentes (libEGL...)
+        pytest.skip(f"Interface Qt indisponible dans cet environnement : {exc}")
+
+    provider = MemoryProvider()
+    provider.unlock("")
+    win = MainWindow(provider=provider)
+    yield win
+    win.shutdown()
+    win._foreground_timer.stop()
+    win._pick_timer.stop()
+    win.deleteLater()
+
+
+def test_main_window_builds(window):
+    from ui.main_window import APP_TITLE, APP_VERSION
+    assert window.windowTitle() == f"{APP_TITLE} v{APP_VERSION}"
+    assert window.entries == []
+    assert window.palette_window is not None
+
+
+def test_main_window_show_hide(window, qapp):
+    window.show()
+    qapp.processEvents()
+    assert window.isVisible()
+    window.hide()
+    qapp.processEvents()
+    assert not window.isVisible()
+
+
+def test_close_hides_instead_of_quitting(window, qapp):
+    """Fermer replie dans le tray : la fenetre n'est pas detruite et les
+    raccourcis globaux restent actifs (CONTRIBUTING.md, tray)."""
+    window.show()
+    qapp.processEvents()
+    window.close()
+    qapp.processEvents()
+    assert not window.isVisible()
+
+
+def test_regression_log_never_shows_content_characters(window):
+    """Audit v0.6.1 : l'apercu de conversion affichait les 60 premiers
+    caracteres du contenu, et les diagnostics listaient les caracteres
+    non tapes. Le contenu peut etre un mot de passe : seuls des decomptes
+    doivent apparaitre dans le journal."""
+    secret = "S3cr3tPw☃Ж"
+    window.content_edit.setPlainText(secret)
+    window._preview_conversion()
+    window._on_diagnostics({"☃"}, {"Ж"})
+
+    log = window.log_edit.toPlainText()
+    assert "S3cr3t" not in log
+    assert "☃" not in log and "Ж" not in log
+    assert "NON TAPÉS : 1 caractère(s)" in log
+
+
+def test_palette_does_not_take_focus(window, qapp):
+    """La palette est une fenetre Tool avec WA_ShowWithoutActivating. Le vrai
+    garde-fou (WS_EX_NOACTIVATE sur le HWND) n'est pas testable en offscreen :
+    ce plugin active toute fenetre affichee, donc qapp.activeWindow() n'y est
+    pas significatif. La validation reste manuelle (keyboard-injection.md)."""
+    from PySide6.QtCore import Qt
+
+    palette = window.palette_window
+    palette.refresh([QuickEntry(label="Test", text="motdepasse")])
+
+    assert palette.testAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+    assert palette.windowFlags() & Qt.WindowType.Tool
+
+    palette.show()
+    qapp.processEvents()
+    assert palette.isVisible()
+
+    palette.hide()
+    qapp.processEvents()
+    assert not palette.isVisible()
+
+
+def test_regression_unmapped_log_shows_count_only(window, monkeypatch):
+    """Chemin _build : les caracteres sans correspondance etaient listes."""
+    import ui.main_window as mw
+    from keyboard.engine import BuildResult
+    monkeypatch.setattr(
+        mw, "build_tokens",
+        lambda text, **kw: BuildResult([("x",)], 1, {"☃", "Ж"}, set()))
+    window._build("S3cr3tPw☃Ж", False, 0)
+    log = window.log_edit.toPlainText()
+    assert "2 caractère(s)" in log
+    assert "☃" not in log and "Ж" not in log and "S3cr3t" not in log
+
+
+def test_edit_delete_buttons_need_a_selection(window, qapp):
+    window.entries = [QuickEntry(label="A", text="x")]
+    window._refresh_quick_table()
+    window.quick_table.clearSelection()
+    qapp.processEvents()
+    assert not window.edit_entry_btn.isEnabled()
+    assert not window.del_entry_btn.isEnabled()
+    window.quick_table.selectRow(0)
+    qapp.processEvents()
+    assert window.edit_entry_btn.isEnabled()
+    assert window.del_entry_btn.isEnabled()
+
+
+def test_arrow_png_falls_back_to_none_and_rebuilds_corrupt_file(
+        qapp, tmp_path, monkeypatch):
+    from ui import theme
+    # Dossier temporaire introuvable : pas de flèche, pas d'exception.
+    def _no_tmp():
+        raise FileNotFoundError("aucun dossier temporaire")
+    monkeypatch.setattr(theme, "_arrow_dir", _no_tmp)
+    assert theme._arrow_url("up", "#123456") == "none"
+
+    # PNG tronqué (autre instance interrompue) : redessiné.
+    monkeypatch.setattr(theme, "_arrow_dir", lambda: tmp_path)
+    corrupt = tmp_path / "arrow_up_123456.png"
+    corrupt.write_bytes(b"")
+    url = theme._arrow_url("up", "#123456")
+    assert url.startswith("url(") and corrupt.stat().st_size > 0
+    assert not list(tmp_path.glob("*.tmp"))
+    for name in ("clair", "sombre"):
+        assert "$" not in theme.stylesheet(name)
+
+
+# --- Raccourcis d'action et capture (v0.6.3) ---------------------------------
+
+def _selected_hwnd(window):
+    from PySide6.QtCore import Qt
+    rows = window.windows_table.selectionModel().selectedRows()
+    if not rows:
+        return None
+    return window.windows_table.item(rows[0].row(), 3).data(
+        Qt.ItemDataRole.UserRole)
+
+
+def test_capture_selects_row_like_a_click(window):
+    assert window._capture_window(1002) is True
+    assert window._target_hwnd == 1002
+    assert _selected_hwnd(window) == 1002
+
+
+def test_capture_clears_filter_hiding_the_window(window):
+    window.window_filter.setText("notepad")
+    assert window._capture_window(1002) is True
+    assert window.window_filter.text() == ""
+    assert _selected_hwnd(window) == 1002
+
+
+def test_refresh_keeps_target_selected(window):
+    window._capture_window(1003)
+    window._refresh_windows()
+    assert _selected_hwnd(window) == 1003
+
+
+def test_capture_refuses_own_window(window, monkeypatch):
+    from keyboard import backend as w32
+    monkeypatch.setattr(w32, "belongs_to_process", lambda hwnd, pid: True)
+    assert window._capture_window(1001) is False
+    assert window._target_hwnd == 0
+
+
+def test_capture_hotkey_uses_window_at_hotkey_time(window):
+    from core.hotkeys import ACTION_CAPTURE_TARGET
+    window._on_action_hotkey(ACTION_CAPTURE_TARGET, 1003)
+    assert window._target_hwnd == 1003 and _selected_hwnd(window) == 1003
+
+
+def test_hidden_window_notifies_tray_on_capture(window):
+    got = []
+    window.notify.connect(got.append)
+    window.hide()
+    window._capture_window(1002)
+    assert got and "Connexion Bureau" in got[0]
+
+
+def test_palette_hotkey_toggles_palette(window, qapp):
+    from core.hotkeys import ACTION_TOGGLE_PALETTE
+    window._on_action_hotkey(ACTION_TOGGLE_PALETTE, 0)
+    qapp.processEvents()
+    assert window.palette_window.isVisible()
+    window._on_action_hotkey(ACTION_TOGGLE_PALETTE, 0)
+    qapp.processEvents()
+    assert not window.palette_window.isVisible()
+
+
+def test_set_app_hotkey_persists_and_refuses_conflicts(window, isolated_settings):
+    from core import hotkeys as hk
+    from PySide6.QtCore import QSettings
+    combo = (hk.MOD_CONTROL | hk.MOD_ALT, ord("C"))
+    assert window.set_app_hotkey(hk.ACTION_CAPTURE_TARGET, *combo) is None
+    ini = QSettings(isolated_settings, QSettings.Format.IniFormat)
+    assert int(ini.value("hotkeys/capture_target_mods")) == combo[0]
+    assert int(ini.value("hotkeys/capture_target_vk")) == combo[1]
+
+    # Meme combinaison pour l'autre action : refus, rien ne change.
+    error = window.set_app_hotkey(hk.ACTION_TOGGLE_PALETTE, *combo)
+    assert error and "Cibler la fenêtre active" in error
+    assert window._app_hotkeys[hk.ACTION_TOGGLE_PALETTE] == (0, 0)
+
+    # Combinaison d'une entree d'envoi rapide : refus.
+    window.entries = [QuickEntry(label="root", text="x",
+                                 mods=hk.MOD_CONTROL, vk=0x70)]
+    assert "root" in window.set_app_hotkey(
+        hk.ACTION_TOGGLE_PALETTE, hk.MOD_CONTROL, 0x70)
+
+
+def test_quick_entry_dialog_refuses_action_hotkey(qapp, monkeypatch):
+    from core import hotkeys as hk
+    from ui import quick_entry_dialog as qed
+    warnings = []
+    monkeypatch.setattr(qed.QMessageBox, "warning",
+                        lambda *a, **k: warnings.append(a[2]))
+    dlg = qed.QuickEntryDialog(
+        [], reserved={hk.ACTION_TOGGLE_PALETTE: (hk.MOD_CONTROL, ord("P"))})
+    dlg.label_edit.setText("x")
+    dlg.hotkey_edit.set_hotkey(hk.MOD_CONTROL, ord("P"))
+    dlg._on_accept()
+    assert warnings and "palette" in warnings[0]
+    assert dlg.result() != dlg.DialogCode.Accepted
+    dlg.deleteLater()
+
+
+def test_options_dialog_hotkey_fields(qapp):
+    from core import hotkeys as hk
+    from ui.options_dialog import OptionsDialog
+    dlg = OptionsDialog("clair", "", app_hotkeys={
+        hk.ACTION_CAPTURE_TARGET: (hk.MOD_CONTROL, ord("K"))})
+    assert dlg.hotkey_edits[hk.ACTION_CAPTURE_TARGET].text() == "Ctrl+K"
+    got = []
+    dlg.app_hotkey_changed.connect(lambda *a: got.append(a))
+    dlg.hotkey_edits[hk.ACTION_TOGGLE_PALETTE].set_hotkey(hk.MOD_ALT, ord("P"))
+    assert got == [(hk.ACTION_TOGGLE_PALETTE, hk.MOD_ALT, ord("P"))]
+    dlg.set_app_hotkey(hk.ACTION_TOGGLE_PALETTE, 0, 0)   # retour silencieux
+    assert len(got) == 1
+    dlg.deleteLater()
+
+
+
+# --- Relecture v0.6.3 : regle 2bis, envoi en cours, notification ------------
+
+def test_regression_action_hotkey_releases_held_alt(window):
+    """Regle 2bis : l'Alt du raccourci, consomme par RegisterHotKey,
+    activait la barre de menus de la cible au relachement."""
+    from core.hotkeys import ACTION_TOGGLE_PALETTE
+    from keyboard import backend as w32
+    w32.held_modifiers.append("LAlt")
+    window._on_action_hotkey(ACTION_TOGGLE_PALETTE, 1001)
+    assert w32.held_modifiers == []
+    window.palette_window.hide()
+
+
+def test_regression_hotkey_during_send_pauses_and_is_ignored(window, monkeypatch):
+    """Ctrl/Alt tenus pendant que l'outil tape : Ctrl+lettre dans la cible."""
+    from core.hotkeys import ACTION_CAPTURE_TARGET
+    from core.inject_controller import InjectController
+    monkeypatch.setattr(InjectController, "is_running",
+                        property(lambda self: True))
+    paused = []
+    monkeypatch.setattr(window.controller, "pause", lambda: paused.append(1))
+
+    window._on_action_hotkey(ACTION_CAPTURE_TARGET, 1003)
+    assert paused == [1] and window._target_hwnd == 0
+
+    window._on_hotkey(QuickEntry(label="root", text="x"), 1003)
+    assert paused == [1, 1]
+
+
+def test_button_capture_on_visible_active_window_does_not_notify(window, qapp):
+    got = []
+    window.notify.connect(got.append)
+    window.show()
+    window.activateWindow()
+    qapp.processEvents()
+    if not window.isActiveWindow():
+        pytest.skip("activation de fenetre non geree par ce plugin Qt")
+    window._capture_window(1002)                     # bouton
+    assert got == []
+    window._capture_window(1003, from_hotkey=True)   # raccourci, fenetre active
+    assert got == []
+    window.hide()
+
+
+def test_hotkey_capture_notifies_when_window_is_behind(window, monkeypatch):
+    got = []
+    window.notify.connect(got.append)
+    monkeypatch.setattr(window, "isVisible", lambda: True)
+    monkeypatch.setattr(window, "isActiveWindow", lambda: False)
+    window._capture_window(1002)                     # bouton : pas de bulle
+    assert got == []
+    window._capture_window(1003, from_hotkey=True)   # raccourci : bulle
+    assert got and "Bloc-notes" in got[0]
+
+
+def test_set_app_hotkey_refuses_altgr_character(window):
+    from core import hotkeys as hk
+    error = window.set_app_hotkey(hk.ACTION_CAPTURE_TARGET,
+                                  hk.MOD_CONTROL | hk.MOD_ALT, ord("0"))
+    assert error and "@" in error
+    assert window._app_hotkeys[hk.ACTION_CAPTURE_TARGET] == (0, 0)
+
+
+def test_hotkey_edit_focus_suspends_global_hotkeys(window, qapp):
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QFocusEvent
+    from ui.hotkey_edit import HotkeyEdit
+    edit = HotkeyEdit()
+    window._suspend_during_capture(edit)
+    edit.focusInEvent(QFocusEvent(QFocusEvent.Type.FocusIn,
+                                  Qt.FocusReason.MouseFocusReason))
+    assert window.hotkeys.is_suspended
+    edit.focusOutEvent(QFocusEvent(QFocusEvent.Type.FocusOut,
+                                   Qt.FocusReason.MouseFocusReason))
+    assert not window.hotkeys.is_suspended
+    edit.deleteLater()
+
+
+def test_options_shows_refused_actions(qapp):
+    from core import hotkeys as hk
+    from ui.options_dialog import OptionsDialog
+    dlg = OptionsDialog("clair", "", refused_actions={hk.ACTION_TOGGLE_PALETTE})
+    assert not dlg.refused_label.isHidden()
+    assert "palette" in dlg.refused_label.text()
+    dlg.set_refused_actions(set())
+    assert dlg.refused_label.isHidden()
+    dlg.deleteLater()
+
+
+
+# --- v0.6.4 : cible administrateur, reinitialisation, instance unique -------
+
+@pytest.fixture
+def elevated(monkeypatch):
+    from keyboard import backend as w32
+    table = {}
+    monkeypatch.setattr(w32, "_FAKE_ELEVATED", table)
+    return table
+
+
+def test_elevated_target_is_flagged(window, elevated):
+    elevated[1003] = True
+    assert window._capture_window(1003)
+    assert not window.target_elevation_label.isHidden()
+    assert "tourne en administrateur" in window.target_elevation_label.text()
+    assert "administrateur" in window.bar_target_label.text()
+    assert "administrateur" in window.log_edit.toPlainText()
+
+
+def test_probably_elevated_target_says_so(window, elevated):
+    elevated[1002] = None                    # acces refuse : probable
+    window._capture_window(1002)
+    assert "peut-être en administrateur" in \
+        window.target_elevation_label.text()
+    assert "peut-être bloquées" in window.status_label.text()
+
+
+def test_normal_target_has_no_admin_warning(window, elevated):
+    elevated[1003] = True
+    window._capture_window(1003)
+    window._capture_window(1001)             # retour a une fenetre normale
+    assert window.target_elevation_label.isHidden()
+    assert "administrateur" not in window.bar_target_label.text()
+
+
+def test_regression_reset_then_continue_without_saving(window, tmp_path,
+                                                       fast_kdf, monkeypatch):
+    """« Continuer sans enregistrer » apres reinitialisation etait ignore :
+    le journal annoncait un nouveau master password, stockage verrouille."""
+    from PySide6.QtWidgets import QDialog, QMessageBox
+    from security.local_encrypted import LocalEncryptedProvider
+    import ui.main_window as mw
+    import ui.master_password_dialog as mpd
+
+    store = LocalEncryptedProvider(tmp_path / "entries.enc")
+    store.unlock("master")
+    window.provider = store
+    monkeypatch.setattr(mw.QMessageBox, "warning",
+                        lambda *a, **k: QMessageBox.StandardButton.Yes)
+
+    class _Dialog:
+        def __init__(self, *a, **k):
+            self.choice = "memory"
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def deleteLater(self):
+            pass
+    monkeypatch.setattr(mpd, "MasterPasswordDialog", _Dialog)
+
+    window._reset_master_password()
+    assert window._is_volatile and window.provider.is_unlocked()
+    log = window.log_edit.toPlainText()
+    assert "mode sans enregistrement" in log
+    assert "Nouveau master password défini" not in log
+    assert not (tmp_path / "entries.enc").exists()
+
+
+def test_memory_storage_switch_releases_hotkeys(window, monkeypatch):
+    """Bascule en memoire avec des entrees chargees : leurs raccourcis
+    globaux doivent etre liberes (sinon ils taperaient encore le secret)."""
+    released = []
+    monkeypatch.setattr(window.hotkeys, "unregister_all",
+                        lambda entries: released.extend(entries))
+    entry = QuickEntry(label="root", text="x", mods=2, vk=0x70)
+    window.entries = [entry]
+    window.use_memory_storage()
+    assert released == [entry] and window.entries == []
+
+
+def test_bring_to_front_shows_hidden_window(window, qapp):
+    window.hide()
+    window.bring_to_front()
+    qapp.processEvents()
+    assert window.isVisible()
+    window.hide()
+
+
+# ------------------------------------------------------ choix du coffre --
+def _vault(path, password="pw", labels=()):
+    from security.local_encrypted import LocalEncryptedProvider
+    store = LocalEncryptedProvider(path)
+    store.unlock(password)
+    if labels:
+        store.save([QuickEntry(label=label, text="x") for label in labels])
+    return store
+
+
+def test_set_store_path_never_overwrites_existing_file(window, tmp_path,
+                                                       fast_kdf, monkeypatch):
+    import ui.main_window as mw
+    current = _vault(tmp_path / "courant.enc", labels=["a"])
+    other = _vault(tmp_path / "autre.enc", "autre", labels=["b"])
+    other.lock()
+    before = (tmp_path / "autre.enc").read_bytes()
+    window.provider = current
+    window.entries = current.load()
+    monkeypatch.setattr(mw.QMessageBox, "critical", lambda *a, **k: None)
+
+    assert not window.set_store_path(tmp_path / "autre.enc")
+    assert (tmp_path / "autre.enc").read_bytes() == before
+    assert window.provider.path == tmp_path / "courant.enc"
+
+
+def test_regression_failed_move_keeps_previous_path(window, tmp_path,
+                                                    fast_kdf, monkeypatch):
+    """Un echec d'ecriture laissait le coffre pointer sur le nouveau chemin :
+    les enregistrements suivants visaient un fichier inexistant."""
+    import ui.main_window as mw
+    from security.provider import SecretProviderError
+    current = _vault(tmp_path / "courant.enc")
+    window.provider = current
+    monkeypatch.setattr(mw.QMessageBox, "critical", lambda *a, **k: None)
+    monkeypatch.setattr(current, "_write", lambda *a, **k: (_ for _ in ()).throw(
+        SecretProviderError("disque plein")))
+    assert not window.set_store_path(tmp_path / "ailleurs.enc")
+    assert current.path == tmp_path / "courant.enc"
+
+
+def test_set_store_path_copies_and_remembers(window, tmp_path, fast_kdf):
+    from ui.store_history import recent_stores
+    current = _vault(tmp_path / "courant.enc", labels=["a"])
+    window.provider = current
+    window.entries = current.load()
+    assert window.set_store_path(tmp_path / "copie.enc")
+    assert (tmp_path / "courant.enc").exists()          # ancien conservé
+    assert window.provider.path == tmp_path / "copie.enc"
+    assert recent_stores(window._settings)[0] == tmp_path / "copie.enc"
+
+
+def test_regression_enable_storage_merges_into_existing_vault(
+        window, tmp_path, fast_kdf):
+    """Activer l'enregistrement depuis le mode memoire sur un coffre EXISTANT
+    remplacait son contenu par les seules entrees de la session."""
+    window.entries = [QuickEntry(label="session", text="x")]
+    existing = _vault(tmp_path / "coffre.enc", labels=["ancien"])
+    assert window.adopt_provider(existing)
+    labels = sorted(e.label for e in window.entries)
+    assert labels == ["ancien", "session"]
+    assert sorted(e.label for e in existing.load()) == ["ancien", "session"]
+    assert not window._is_volatile
+
+
+def test_switching_vault_releases_hotkeys_and_locks_old(window, tmp_path,
+                                                        fast_kdf, monkeypatch):
+    first = _vault(tmp_path / "a.enc", labels=["a"])
+    window.provider = first
+    window.entries = first.load()
+    released = []
+    monkeypatch.setattr(window.hotkeys, "unregister_all",
+                        lambda entries: released.extend(entries))
+    second = _vault(tmp_path / "b.enc", "autre", labels=["b"])
+    assert window.adopt_provider(second)
+    assert [e.label for e in released] == ["a"]
+    assert not first.is_unlocked()
+    assert [e.label for e in window.entries] == ["b"]
+    # Coffre a coffre : rien n'est recopie de l'un dans l'autre.
+    assert [e.label for e in second.load()] == ["b"]
+
+
+def test_save_as_on_existing_file_offers_to_open_it(window, tmp_path,
+                                                    fast_kdf, monkeypatch):
+    import ui.main_window as mw
+    current = _vault(tmp_path / "courant.enc", labels=["a"])
+    window.provider = current
+    window.entries = current.load()
+    taken = _vault(tmp_path / "pris.enc", "autre")
+    taken.lock()
+    before = (tmp_path / "pris.enc").read_bytes()
+    monkeypatch.setattr(mw.QFileDialog, "getSaveFileName",
+                        lambda *a, **k: (str(tmp_path / "pris"), ""))
+    monkeypatch.setattr(mw.QMessageBox, "exec", lambda self: 0)   # Annuler
+    window._save_store_as()
+    assert (tmp_path / "pris.enc").read_bytes() == before
+    assert window.provider.path == tmp_path / "courant.enc"

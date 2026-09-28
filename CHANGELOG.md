@@ -1,0 +1,35 @@
+# Journal des versions
+
+Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
+versions selon [SemVer](https://semver.org/lang/fr/).
+
+## [0.6.5] - 2026-09-28
+
+Première version publique.
+
+### Fonctionnalités
+- Envoi de texte par frappe clavier simulée (scancodes, AltGr, repli
+  Unicode) vers une fenêtre choisie, avec compte à rebours, pause, reprise,
+  arrêt et garde-fou de focus.
+- Conversion vers la disposition clavier de la console cible et détection de
+  la disposition de la fenêtre visée.
+- Envoi rapide : entrées associées à des raccourcis globaux, palette
+  flottante qui ne prend jamais le focus.
+- Raccourcis globaux d'action : cibler la fenêtre active, afficher / masquer
+  la palette.
+- Coffre chiffré (Fernet, PBKDF2-SHA256 600 000 itérations), ou mode sans
+  enregistrement.
+- Choix du coffre au lancement (coffres récents, ouvrir un coffre existant,
+  en créer un), mémorisation du dernier coffre, « Ouvrir un autre coffre » et
+  « Enregistrer sous » sans jamais écraser un fichier existant.
+- Avertissement quand la fenêtre cible tourne en administrateur, instance
+  unique, icône dans la barre système, thèmes clair et sombre.
+
+### Sécurité
+- Écriture atomique et exclusive du coffre, DACL NTFS restreinte,
+  en-tête borné contre les fichiers altérés.
+- Aucun secret dans les journaux, le registre ni le presse-papiers.
+- Releases construites par la CI, avec empreintes SHA-256 et attestation de
+  provenance.
+
+[0.6.5]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.6.5

@@ -1,0 +1,17 @@
+# Dependances de SendToConsole.
+# requirements-core.txt suffit pour tester le moteur clavier seul (cli_test.py).
+
+# Interface graphique
+PySide6==6.11.2
+
+# Chiffrement du fichier d'entrees d'envoi rapide
+cryptography==49.0.0
+
+# Nom des processus proprietaires des fenetres (EnumWindows -> Get-Process)
+psutil==7.2.2
+
+# A ajouter en V2 (integration KeePass / Vaultwarden) :
+# pykeepass
+
+# Pour construire le .exe autonome :
+# pyinstaller

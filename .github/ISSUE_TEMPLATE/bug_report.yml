@@ -1,0 +1,37 @@
+name: Signaler un bug
+description: Un comportement inattendu de SendToConsole
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ne collez jamais de mot de passe, de clé de licence, de nom d'hôte interne ni de fichier `.enc`.**
+        Pour une faille de sécurité, utilisez le [signalement privé](https://github.com/Kenny3231/SendToConsole/security/advisories/new).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Visible dans la barre de titre (ex. v0.6.5).
+    validations:
+      required: true
+  - type: input
+    id: target
+    attributes:
+      label: Console cible
+      description: iDRAC, iLO, XClarity, IPMI/SOL, noVNC, RDP, autre… et navigateur utilisé.
+  - type: input
+    id: layouts
+    attributes:
+      label: Dispositions clavier
+      description: Poste (ex. Français AZERTY) et console (ex. Anglais US QWERTY).
+  - type: textarea
+    id: what
+    attributes:
+      label: Ce qui se passe
+      description: Étapes pour reproduire, texte envoyé (sans secret) et texte reçu.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ce qui était attendu

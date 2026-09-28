@@ -38,3 +38,36 @@ jobs:
       # aucune vraie frappe n'est envoyée sur la machine de CI.
       - name: Tests
         run: python -m pytest
+
+  build:
+    # Valide la construction de l'exécutable (montées de version de
+    # PyInstaller proposées par Dependabot) avant qu'une release en dépende.
+    name: Construction de l'exécutable
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: Dépendances (versions épinglées)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+
+      - name: Construction (PyInstaller, onedir)
+        shell: pwsh
+        env:
+          STC_ONEFILE: "0"
+          STC_NO_PRUNE: "0"
+        run: |
+          python -m PyInstaller build/SendToConsole.spec --noconfirm `
+            --workpath build/SendToConsole --distpath dist
+          if (-not (Test-Path dist/SendToConsole/SendToConsole.exe)) { throw "Exécutable absent." }
+          if (Get-ChildItem dist -Recurse -Include *.enc, *.tmp) { throw "Coffre ou fichier temporaire dans la livraison." }

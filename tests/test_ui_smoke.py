@@ -126,10 +126,10 @@ def test_palette_does_not_take_focus(window, qapp):
 
 def test_regression_unmapped_log_shows_count_only(window, monkeypatch):
     """Chemin _build : les caracteres sans correspondance etaient listes."""
-    import ui.main_window as mw
+    import ui.window.sending as sending      # module ou _build cherche le nom
     from keyboard.engine import BuildResult
     monkeypatch.setattr(
-        mw, "build_tokens",
+        sending, "build_tokens",
         lambda text, **kw: BuildResult([("x",)], 1, {"☃", "Ж"}, set()))
     window._build("S3cr3tPw☃Ж", False, 0)
     log = window.log_edit.toPlainText()
@@ -415,13 +415,13 @@ def test_regression_reset_then_continue_without_saving(window, tmp_path,
     le journal annoncait un nouveau master password, stockage verrouille."""
     from PySide6.QtWidgets import QDialog, QMessageBox
     from security.local_encrypted import LocalEncryptedProvider
-    import ui.main_window as mw
+    from PySide6 import QtWidgets as qtw
     import ui.master_password_dialog as mpd
 
     store = LocalEncryptedProvider(tmp_path / "entries.enc")
     store.unlock("master")
     window.provider = store
-    monkeypatch.setattr(mw.QMessageBox, "warning",
+    monkeypatch.setattr(qtw.QMessageBox, "warning",
                         lambda *a, **k: QMessageBox.StandardButton.Yes)
 
     class _Dialog:
@@ -475,14 +475,14 @@ def _vault(path, password="pw", labels=()):
 
 def test_set_store_path_never_overwrites_existing_file(window, tmp_path,
                                                        fast_kdf, monkeypatch):
-    import ui.main_window as mw
+    from PySide6 import QtWidgets as qtw
     current = _vault(tmp_path / "courant.enc", labels=["a"])
     other = _vault(tmp_path / "autre.enc", "autre", labels=["b"])
     other.lock()
     before = (tmp_path / "autre.enc").read_bytes()
     window.provider = current
     window.entries = current.load()
-    monkeypatch.setattr(mw.QMessageBox, "critical", lambda *a, **k: None)
+    monkeypatch.setattr(qtw.QMessageBox, "critical", lambda *a, **k: None)
 
     assert not window.set_store_path(tmp_path / "autre.enc")
     assert (tmp_path / "autre.enc").read_bytes() == before
@@ -493,11 +493,11 @@ def test_regression_failed_move_keeps_previous_path(window, tmp_path,
                                                     fast_kdf, monkeypatch):
     """Un echec d'ecriture laissait le coffre pointer sur le nouveau chemin :
     les enregistrements suivants visaient un fichier inexistant."""
-    import ui.main_window as mw
+    from PySide6 import QtWidgets as qtw
     from security.provider import SecretProviderError
     current = _vault(tmp_path / "courant.enc")
     window.provider = current
-    monkeypatch.setattr(mw.QMessageBox, "critical", lambda *a, **k: None)
+    monkeypatch.setattr(qtw.QMessageBox, "critical", lambda *a, **k: None)
     monkeypatch.setattr(current, "_write", lambda *a, **k: (_ for _ in ()).throw(
         SecretProviderError("disque plein")))
     assert not window.set_store_path(tmp_path / "ailleurs.enc")
@@ -547,16 +547,16 @@ def test_switching_vault_releases_hotkeys_and_locks_old(window, tmp_path,
 
 def test_save_as_on_existing_file_offers_to_open_it(window, tmp_path,
                                                     fast_kdf, monkeypatch):
-    import ui.main_window as mw
+    from PySide6 import QtWidgets as qtw
     current = _vault(tmp_path / "courant.enc", labels=["a"])
     window.provider = current
     window.entries = current.load()
     taken = _vault(tmp_path / "pris.enc", "autre")
     taken.lock()
     before = (tmp_path / "pris.enc").read_bytes()
-    monkeypatch.setattr(mw.QFileDialog, "getSaveFileName",
+    monkeypatch.setattr(qtw.QFileDialog, "getSaveFileName",
                         lambda *a, **k: (str(tmp_path / "pris"), ""))
-    monkeypatch.setattr(mw.QMessageBox, "exec", lambda self: 0)   # Annuler
+    monkeypatch.setattr(qtw.QMessageBox, "exec", lambda self: 0)   # Annuler
     window._save_store_as()
     assert (tmp_path / "pris.enc").read_bytes() == before
     assert window.provider.path == tmp_path / "courant.enc"

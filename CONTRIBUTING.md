@@ -18,9 +18,10 @@ privé), pas une issue publique.
 
 ```
 src/keyboard/  win32_api (Win32 réel) · backend (réel / simulé) · engine · layouts · layout_converter
-src/core/      models (QuickEntry) · hotkeys · inject_controller (machine à états QTimer) · single_instance
+src/core/      models (QuickEntry) · hotkeys · inject_controller (machine à états QTimer) · paste · single_instance
 src/security/  provider (interface) · local_encrypted · memory_provider · file_acl
-src/ui/        main_window · palette · options_dialog · quick_entry_dialog · master_password_dialog · store_history · theme · icons
+src/ui/        main_window (assemble la fenêtre) · palette · options_dialog · quick_entry_dialog · master_password_dialog · store_history · clipboard · theme · icons
+src/ui/window/ parties de la fenêtre principale par domaine : sending · storage · options · target · content · keyboard_tab · quick · actions
 tests/         pytest (clavier simulé, Qt offscreen)
 build/         SendToConsole.spec (PyInstaller) · build.ps1 · make_icon.py
 docs/          site GitHub Pages
@@ -66,6 +67,11 @@ existant.
    l'instant du raccourci.
 
 ## Conventions
+
+- La fenêtre principale est découpée par domaine : `ui/main_window.py`
+  construit l'interface et assemble des mixins (`ui/window/*.py`) qui
+  partagent les attributs créés par `MainWindow.__init__`. Une nouvelle
+  méthode va dans le module de son domaine.
 
 - Type hints, PEP 8, docstrings sur les API publiques ; libellés de
   l'interface en français.

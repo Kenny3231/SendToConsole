@@ -3,6 +3,15 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.2] - 2026-09-28
+
+### Interne
+- Découpage de la fenêtre principale : `ui/main_window.py` passe de 1 658 à
+  258 lignes ; les méthodes sont réparties par domaine dans `ui/window/`
+  (envoi, coffre, options, cible, contenu, clavier, envoi rapide,
+  raccourcis). Déplacement à l'identique (88 méthodes vérifiées par
+  comparaison d'arbre syntaxique), aucun changement de comportement.
+
 ## [0.7.1] - 2026-09-28
 
 ### Sécurité
@@ -75,6 +84,7 @@ Première version publique.
 - Releases construites par la CI, avec empreintes SHA-256 et attestation de
   provenance.
 
+[0.7.2]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.7.2
 [0.7.1]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.7.1
 [0.7.0]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.7.0
 [0.6.6]: https://github.com/Kenny3231/SendToConsole/releases/tag/v0.6.6

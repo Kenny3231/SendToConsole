@@ -21,7 +21,7 @@ palette. hotkey_owner() couvre les deux familles pour les conflits.
 from __future__ import annotations
 
 import sys
-from typing import Callable, Optional
+from typing import Optional
 
 from PySide6.QtCore import QAbstractNativeEventFilter, QObject, Signal
 

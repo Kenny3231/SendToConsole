@@ -198,6 +198,13 @@ class InjectController(QObject):
         if self._state != "sending":
             return
 
+        # La fin de sequence passe AVANT le garde-focus : une ENTREE finale
+        # change souvent le focus (connexion validee, boite fermee), et
+        # l'envoi restait alors en pause sans plus rien a taper.
+        if self._index >= len(self._tokens):
+            self._finish()
+            return
+
         if self.guard_focus and w32.get_foreground_window() != self._target_hwnd:
             self._timer.stop()
             self._set_state("paused")
@@ -206,19 +213,22 @@ class InjectController(QObject):
                 "PAUSE AUTO - le focus a quitté la fenêtre cible.")
             return
 
-        if self._index >= len(self._tokens):
-            self._timer.stop()
-            self._set_state("idle")
-            self.status_changed.emit("Terminé.")
-            self.diagnostics.emit(set(engine.fallback_chars),
-                                  set(engine.failed_chars))
-            self._tokens = []   # la sequence (secrets compris) ne survit pas
-            self.finished.emit()
-            return
-
         tk = self._tokens[self._index]
         send_token(tk, self._hkl_local, method=self.send_method)
 
         self._index += 1
         self.progress_changed.emit(self._index, len(self._tokens))
+        if self._index >= len(self._tokens):
+            # Derniere frappe partie : rien a attendre ni a surveiller.
+            self._finish()
+            return
         self._timer.setInterval(max(1, tk.delay_ms))
+
+    def _finish(self) -> None:
+        self._timer.stop()
+        self._set_state("idle")
+        self.status_changed.emit("Terminé.")
+        self.diagnostics.emit(set(engine.fallback_chars),
+                              set(engine.failed_chars))
+        self._tokens = []   # la sequence (secrets compris) ne survit pas
+        self.finished.emit()

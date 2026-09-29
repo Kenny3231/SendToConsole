@@ -3,6 +3,15 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.3] - 2026-09-29
+
+### Corrigé
+- Envoi rapide avec « Envoyer ENTRÉE après le texte » : quand l'ENTRÉE
+  finale faisait changer le focus (connexion validée, boîte fermée), l'envoi
+  restait bloqué en pause automatique sans plus rien à taper, et tout
+  raccourci suivant était refusé. L'envoi se termine désormais dès la
+  dernière frappe.
+
 ## [0.7.2] - 2026-09-28
 
 ### Interne

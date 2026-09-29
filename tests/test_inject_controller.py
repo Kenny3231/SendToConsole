@@ -79,6 +79,28 @@ def test_pause_resume_stop(ctl):
     assert ctl.state == "idle" and not ctl.is_running
 
 
+def test_regression_final_enter_changing_focus_still_finishes(ctl, monkeypatch):
+    """ENTREE finale qui fait quitter la cible (connexion validee, boite
+    fermee) : l'envoi restait en pause auto sans plus rien a taper, et tout
+    raccourci suivant etait refuse (« un envoi est déjà en cours »)."""
+    backend.force_foreground(TARGET)
+    real_send = engine.send_token
+
+    def send_and_lose_focus(tk, *args, **kwargs):
+        ok = real_send(tk, *args, **kwargs)
+        if tk.kind == "enter":
+            backend.force_foreground(1002)
+        return ok
+
+    monkeypatch.setattr("core.inject_controller.send_token", send_and_lose_focus)
+    done = []
+    ctl.finished.connect(lambda: done.append(True))
+    toks = build_tokens("abc", 1, 1, final_enter=True, hkl_local=HKL).tokens
+    ctl.start(toks, HKL, TARGET, force_foreground=False)
+    run_to_end(ctl)
+    assert done and ctl.state == "idle" and not ctl.is_running
+
+
 def test_second_start_while_running_is_refused(ctl):
     backend.force_foreground(TARGET)
     errors = []

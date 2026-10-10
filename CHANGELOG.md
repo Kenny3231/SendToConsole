@@ -27,6 +27,10 @@ versions selon [SemVer](https://semver.org/lang/fr/).
 ### Corrigé
 - Un raccourci pressé pendant le compte à rebours d'un envoi annonçait
   « envoi mis en pause » alors que rien n'était mis en pause.
+- « Reprendre » redonne le focus à la fenêtre cible : l'envoi se remettait
+  aussitôt en pause automatique.
+- Raccourci global pressé pendant un envoi : son Alt n'active plus la barre
+  de menus de la cible, et la reprise attend le relâchement des touches.
 - Thème sombre : barre de défilement plus contrastée.
 
 ## [0.7.3] - 2026-09-29

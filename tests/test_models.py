@@ -28,3 +28,13 @@ def test_has_hotkey_needs_both():
 def test_matches_filter():
     e = QuickEntry("Serveur iDRAC prod")
     assert e.matches("") and e.matches("  idrac ") and not e.matches("ilo")
+
+
+def test_entry_enabled_roundtrip_and_legacy_default():
+    from core.models import QuickEntry
+    off = QuickEntry("x", "s", enabled=False)
+    assert QuickEntry.from_dict(off.to_dict()).enabled is False
+    # Coffre anterieur a la v0.7.5 : pas de champ, l'entree reste active.
+    legacy = off.to_dict()
+    del legacy["enabled"]
+    assert QuickEntry.from_dict(legacy).enabled is True

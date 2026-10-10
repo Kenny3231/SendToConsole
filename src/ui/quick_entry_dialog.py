@@ -63,6 +63,10 @@ class QuickEntryDialog(QDialog):
         self.enter_chk = QCheckBox("Envoyer ENTRÉE après le texte")
         self.enter_chk.setChecked(entry.final_enter if entry else False)
 
+        self.enabled_chk = QCheckBox(
+            "Active (présente dans la palette, raccourci actif)")
+        self.enabled_chk.setChecked(entry.enabled if entry else True)
+
         hint = QLabel(
             "Clique le champ du raccourci puis presse la combinaison "
             "(ex. Ctrl+Alt+F1). Elle reste active même quand le focus est "
@@ -76,6 +80,7 @@ class QuickEntryDialog(QDialog):
         form.addRow("", self.secret_chk)
         form.addRow("Raccourci :", hotkey_row)
         form.addRow("", self.enter_chk)
+        form.addRow("", self.enabled_chk)
         form.addRow(hint)
 
         buttons = QDialogButtonBox(
@@ -137,4 +142,5 @@ class QuickEntryDialog(QDialog):
             vk=self.hotkey_edit.vk,
             final_enter=self.enter_chk.isChecked(),
             secret=self.secret_chk.isChecked(),
+            enabled=self.enabled_chk.isChecked(),
         )

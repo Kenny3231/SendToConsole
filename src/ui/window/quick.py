@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QAbstractItemView, QHBoxLayout, QHeaderView, QLabel, QMessageBox, QPushButton,
     QTableWidget, QTableWidgetItem,
@@ -52,6 +52,7 @@ class QuickSendMixin:
         self.quick_table.setEditTriggers(
             QAbstractItemView.EditTrigger.NoEditTriggers)
         self.quick_table.doubleClicked.connect(self._edit_entry)
+        self.quick_table.itemChanged.connect(self._on_quick_item_changed)
         self.quick_table.itemSelectionChanged.connect(self._sync_buttons)
         # Voir la remarque sur content_edit : sans ce minimum bas, cette page
         # etait la plus exigeante des trois et imposait sa hauteur.
@@ -110,16 +111,73 @@ class QuickSendMixin:
             self.quick_table.setItem(
                 row, 2, QTableWidgetItem("oui" if entry.final_enter else "non"))
 
-            if not entry.has_hotkey:
-                state = "-"
-            elif entry.registered:
-                state = "actif"
-            else:
-                state = "refusé"
-            self.quick_table.setItem(row, 3, QTableWidgetItem(state))
+            # Case native : souris, Espace, et theme pris en charge par Qt.
+            state_item = QTableWidgetItem(self._state_text(entry))
+            state_item.setFlags(state_item.flags()
+                                | Qt.ItemFlag.ItemIsUserCheckable)
+            state_item.setCheckState(Qt.CheckState.Checked if entry.enabled
+                                     else Qt.CheckState.Unchecked)
+            state_item.setToolTip("Cocher : présente dans la palette, "
+                                  "raccourci actif")
+            self.quick_table.setItem(row, 3, state_item)
 
         self.palette_window.refresh(self.entries)
         self._sync_buttons()
+
+    @staticmethod
+    def _state_text(entry: QuickEntry) -> str:
+        if not entry.enabled:
+            return "désactivé"
+        if entry.has_hotkey and not entry.registered:
+            return "refusé"
+        return "actif"
+
+    def _on_quick_item_changed(self, item: QTableWidgetItem) -> None:
+        """Case « État » cochée / décochée : désactivée, l'entrée quitte la
+        palette et son raccourci global est libéré."""
+        if item.column() != 3:
+            return
+        label_item = self.quick_table.item(item.row(), 0)
+        entry = label_item.data(Qt.ItemDataRole.UserRole) if label_item else None
+        enabled = item.checkState() == Qt.CheckState.Checked
+        if entry is None or enabled == entry.enabled:
+            return                      # remplissage de la table
+        entry.enabled = enabled
+        if enabled:
+            self.hotkeys.register(entry)
+        else:
+            self.hotkeys.unregister(entry)
+        # Hors du signal : l'enregistrement peut recharger toute la table
+        # (conflit de coffre), qui ne doit pas changer pendant son itemChanged.
+        QTimer.singleShot(0, lambda: self._finish_toggle(entry))
+
+    def _finish_toggle(self, entry: QuickEntry) -> None:
+        self._save_entries()
+        if not any(e is entry for e in self.entries):
+            return                      # coffre rechargé : table déjà à jour
+        self._sync_entry_row(entry)
+        refused = " (raccourci refusé)" if self._state_text(
+            entry) == "refusé" else ""
+        self._log(f"Entrée « {entry.label} » "
+                  f"{'activée' if entry.enabled else 'désactivée'}{refused}.")
+
+    def _sync_entry_row(self, entry: QuickEntry) -> None:
+        """Met à jour sur place la ligne de `entry` (sélection conservée) et
+        la palette. Rien si l'entrée a disparu (coffre rechargé)."""
+        self.palette_window.refresh(self.entries)
+        for row in range(self.quick_table.rowCount()):
+            label_item = self.quick_table.item(row, 0)
+            if label_item and label_item.data(Qt.ItemDataRole.UserRole) is entry:
+                state_item = self.quick_table.item(row, 3)
+                self.quick_table.blockSignals(True)
+                try:
+                    state_item.setText(self._state_text(entry))
+                    state_item.setCheckState(
+                        Qt.CheckState.Checked if entry.enabled
+                        else Qt.CheckState.Unchecked)
+                finally:
+                    self.quick_table.blockSignals(False)
+                return
 
     def _selected_entry(self) -> Optional[QuickEntry]:
         rows = self.quick_table.selectionModel().selectedRows()

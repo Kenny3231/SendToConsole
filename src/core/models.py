@@ -24,6 +24,8 @@ class QuickEntry:
     final_enter: bool = False
     # Masque le texte dans l'interface (mot de passe vs texte ordinaire).
     secret: bool = True
+    # Desactivee : absente de la palette, raccourci global non enregistre.
+    enabled: bool = True
     # Renseigne a l'execution : le raccourci a-t-il ete accepte par Windows.
     registered: bool = field(default=False, compare=False)
     hotkey_id: int = field(default=0, compare=False)
@@ -47,6 +49,7 @@ class QuickEntry:
             "vk": self.vk,
             "final_enter": self.final_enter,
             "secret": self.secret,
+            "enabled": self.enabled,
         }
 
     @staticmethod
@@ -58,4 +61,6 @@ class QuickEntry:
             vk=int(data.get("vk", 0)),
             final_enter=bool(data.get("final_enter", False)),
             secret=bool(data.get("secret", True)),
+            # Coffres anterieurs a la v0.7.5 : sans le champ, tout est actif.
+            enabled=bool(data.get("enabled", True)),
         )

@@ -236,3 +236,10 @@ def test_regression_legacy_unsafe_entry_combo_is_not_registered(fake_win):
     assert not m.register(entry)
     assert refused == [entry] and not entry.registered
     assert fake.live == {}
+
+
+def test_disabled_entry_hotkey_is_not_registered(fake_win):
+    m, fake = fake_win
+    entry = QuickEntry("off", mods=hk.MOD_CONTROL, vk=0x70, enabled=False)
+    m.register(entry)
+    assert not entry.registered and fake.live == {}

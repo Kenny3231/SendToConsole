@@ -143,7 +143,7 @@ class HotkeyManager(QObject, QAbstractNativeEventFilter):
 
     # ------------------------------------------------------ enregistrement --
     def register(self, entry: QuickEntry) -> bool:
-        if not entry.has_hotkey:
+        if not entry.has_hotkey or not entry.enabled:
             entry.registered = False
             return True
         if not IS_WINDOWS or not self._hwnd:

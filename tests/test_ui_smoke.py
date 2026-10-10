@@ -912,3 +912,57 @@ def test_quit_warns_when_conflict_was_postponed(window, tmp_path, fast_kdf,
         asked.append(a[1]) or QMessageBox.StandardButton.No))
     assert not window.confirm_quit()
     assert asked == ["Modifications non enregistrées"]
+
+
+def test_state_checkbox_toggles_entry_palette_and_hotkey(window, qapp,
+                                                         monkeypatch):
+    """Entree desactivee : absente de la palette, raccourci libere."""
+    from PySide6.QtCore import Qt
+    released, registered = [], []
+    monkeypatch.setattr(window.hotkeys, "unregister", released.append)
+    monkeypatch.setattr(window.hotkeys, "register", registered.append)
+    on = QuickEntry(label="on", text="x", mods=2, vk=0x70)
+    off = QuickEntry(label="off", text="x", enabled=False)
+    window.entries = [on, off]
+    window._refresh_quick_table()
+    assert window.palette_window._entries == [on]
+    assert window.quick_table.item(1, 3).text() == "désactivé"
+    assert released == registered == []          # remplissage : rien
+
+    window.quick_table.selectRow(0)
+    window.quick_table.item(0, 3).setCheckState(Qt.CheckState.Unchecked)
+    qapp.processEvents()
+    assert not on.enabled and released == [on]
+    assert window.palette_window._entries == []
+    assert window.quick_table.item(0, 3).text() == "désactivé"
+    assert window._selected_entry() is on        # selection conservee
+
+    window.quick_table.item(0, 3).setCheckState(Qt.CheckState.Checked)
+    qapp.processEvents()
+    assert on.enabled and registered == [on]
+
+
+def test_regression_toggle_with_vault_reloaded_by_conflict(
+        window, qapp, tmp_path, fast_kdf, monkeypatch):
+    """« Recharger » pendant la bascule remplacait les entrees : ValueError
+    dans le slot (invisible dans l'exe)."""
+    from PySide6.QtCore import Qt
+    path = tmp_path / "entries.enc"
+    _vault(path, labels=["a"])
+    assert window.adopt_provider(_vault(path))
+    _vault(path).save([QuickEntry(label="d-ailleurs", text="x")])
+    _answer_conflict(monkeypatch, "Recharger")
+    window.quick_table.item(0, 3).setCheckState(Qt.CheckState.Unchecked)
+    qapp.processEvents()
+    assert [e.label for e in window.entries] == ["d-ailleurs"]
+    assert window.quick_table.item(0, 0).text() == "d-ailleurs"
+
+
+def test_entry_dialog_has_enabled_checkbox(qapp):
+    from ui.quick_entry_dialog import QuickEntryDialog
+    entry = QuickEntry(label="e", text="x", enabled=False)
+    dlg = QuickEntryDialog([entry], entry=entry)
+    assert not dlg.enabled_chk.isChecked()
+    dlg.enabled_chk.setChecked(True)
+    assert dlg.result_entry().enabled
+    dlg.deleteLater()

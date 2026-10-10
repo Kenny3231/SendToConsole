@@ -509,6 +509,7 @@ class QuickPalette(QWidget):
 
     # ------------------------------------------------------------ contenu --
     def refresh(self, entries: list[QuickEntry]) -> None:
+        entries = [e for e in entries if e.enabled]   # desactivees : absentes
         self._entries = entries
         layout = self._buttons_layout
         if layout is None:
@@ -521,7 +522,8 @@ class QuickPalette(QWidget):
                 widget.deleteLater()
 
         if not entries:
-            empty = QLabel("Aucune entrée.\nAjoute-en dans l'onglet Envoi rapide.")
+            empty = QLabel("Aucune entrée active.\nAjoute ou active-en dans "
+                           "l'onglet Envoi rapide.")
             empty.setObjectName("paletteEmpty")
             empty.setWordWrap(True)
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)

@@ -3,6 +3,16 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.5] - 2026-10-10
+
+### Ajouté
+- Envoi rapide : une entrée peut être activée ou désactivée, par la case de
+  sa cellule « État » (souris ou Espace) ou par la case « Active » de sa
+  fiche. Désactivée,
+  elle n'apparaît plus dans la palette et son raccourci global est libéré ;
+  elle reste dans le coffre et peut toujours être envoyée depuis la table.
+  Les entrées des coffres existants sont actives.
+
 ## [0.7.4] - 2026-10-10
 
 ### Sécurité

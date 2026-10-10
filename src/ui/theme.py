@@ -21,7 +21,7 @@ from pathlib import Path
 from string import Template
 
 from PySide6.QtCore import QPointF, Qt
-from PySide6.QtGui import QColor, QImage, QPainter, QPalette, QPolygonF
+from PySide6.QtGui import QColor, QImage, QPainter, QPalette, QPen, QPolygonF
 from PySide6.QtWidgets import QApplication, QPushButton
 
 LIGHT = "clair"
@@ -292,6 +292,25 @@ QTableWidget {
 
 QTableWidget::item { color: $text; padding: 2px; }
 
+/* Case a cocher des tables (colonne « Etat » de l'envoi rapide) : dessinee
+   par Fusion, la coche prenait la couleur du texte selectionne et restait
+   invisible en theme sombre. */
+QTableWidget::indicator {
+    width: 14px;
+    height: 14px;
+    border: 1px solid $text_muted;
+    border-radius: 3px;
+    background-color: $input_bg;
+}
+QTableWidget::indicator:hover { border-color: $accent; }
+QTableWidget::indicator:checked {
+    border-color: $accent;
+    background-color: $accent;
+    image: $check_image;
+}
+/* Ligne selectionnee : fond identique a l'accent, le contour la detache. */
+QTableWidget::indicator:checked:selected { border: 2px solid $on_accent; }
+
 QTableWidget::item:selected {
     background-color: $accent;
     color: $on_accent;
@@ -513,7 +532,7 @@ def _arrow_dir() -> Path:
 
 
 def _arrow_url(direction: str, color: str) -> str:
-    """Flèche de QSpinBox/QComboBox, dessinée puis écrite en PNG.
+    """Flèche de QSpinBox/QComboBox (ou coche, "check"), dessinée puis écrite en PNG.
 
     Le QSS n'accepte qu'un chemin de fichier ou de ressource : une URI
     « data: » (ancienne approche) n'est jamais chargée par Qt, et les
@@ -536,11 +555,19 @@ def _arrow_url(direction: str, color: str) -> str:
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(color))
-        if direction == "up":
-            points = [QPointF(9, 3), QPointF(17, 15), QPointF(1, 15)]
+        if direction == "check":
+            pen = QPen(QColor(color), 2.6)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            painter.drawPolyline(QPolygonF(
+                [QPointF(3.5, 9.5), QPointF(7.5, 13.5), QPointF(14.5, 4.5)]))
         else:
-            points = [QPointF(1, 3), QPointF(17, 3), QPointF(9, 15)]
-        painter.drawPolygon(QPolygonF(points))
+            if direction == "up":
+                points = [QPointF(9, 3), QPointF(17, 15), QPointF(1, 15)]
+            else:
+                points = [QPointF(1, 3), QPointF(17, 3), QPointF(9, 15)]
+            painter.drawPolygon(QPolygonF(points))
         painter.end()
         # Écriture atomique : deux instances simultanées ne voient jamais
         # un PNG à moitié écrit.
@@ -567,6 +594,7 @@ def stylesheet(theme: str) -> str:
         "down", values["arrow_disabled_text"])
     values["arrow_up_disabled_image"] = _arrow_url(
         "up", values["arrow_disabled_text"])
+    values["check_image"] = _arrow_url("check", values["on_accent"])
     return QSS.substitute(values)
 
 

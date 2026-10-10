@@ -3,6 +3,14 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.6] - 2026-10-10
+
+### Corrigé
+- Case « État » de l'envoi rapide : la coche était invisible en thème sombre
+  (couleur du texte sélectionné). Elle est désormais dessinée par l'outil :
+  contour net décochée, case colorée avec coche blanche ou sombre cochée.
+  Les entrées désactivées s'affichent en italique.
+
 ## [0.7.5] - 2026-10-10
 
 ### Ajouté

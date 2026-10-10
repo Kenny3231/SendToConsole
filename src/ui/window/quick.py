@@ -120,6 +120,7 @@ class QuickSendMixin:
             state_item.setToolTip("Cocher : présente dans la palette, "
                                   "raccourci actif")
             self.quick_table.setItem(row, 3, state_item)
+            self._mark_row_enabled(row, entry.enabled)
 
         self.palette_window.refresh(self.entries)
         self._sync_buttons()
@@ -161,6 +162,16 @@ class QuickSendMixin:
         self._log(f"Entrée « {entry.label} » "
                   f"{'activée' if entry.enabled else 'désactivée'}{refused}.")
 
+    def _mark_row_enabled(self, row: int, enabled: bool) -> None:
+        """Ligne d'une entrée désactivée en italique (aucune couleur en dur :
+        lisible dans les deux thèmes)."""
+        for column in range(self.quick_table.columnCount()):
+            item = self.quick_table.item(row, column)
+            if item is not None:
+                font = item.font()
+                font.setItalic(not enabled)
+                item.setFont(font)
+
     def _sync_entry_row(self, entry: QuickEntry) -> None:
         """Met à jour sur place la ligne de `entry` (sélection conservée) et
         la palette. Rien si l'entrée a disparu (coffre rechargé)."""
@@ -175,6 +186,7 @@ class QuickSendMixin:
                     state_item.setCheckState(
                         Qt.CheckState.Checked if entry.enabled
                         else Qt.CheckState.Unchecked)
+                    self._mark_row_enabled(row, entry.enabled)
                 finally:
                     self.quick_table.blockSignals(False)
                 return

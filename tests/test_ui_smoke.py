@@ -966,3 +966,21 @@ def test_entry_dialog_has_enabled_checkbox(qapp):
     dlg.enabled_chk.setChecked(True)
     assert dlg.result_entry().enabled
     dlg.deleteLater()
+
+
+def test_table_checkbox_is_styled_with_visible_check(qapp, tmp_path,
+                                                     monkeypatch):
+    """La coche Fusion prenait la couleur du texte selectionne : invisible
+    en theme sombre."""
+    from ui import theme
+    monkeypatch.setattr(theme, "_arrow_dir", lambda: tmp_path)
+    qss = theme.stylesheet(theme.DARK)
+    assert "QTableWidget::indicator:checked" in qss
+    check = theme._arrow_url("check", theme.TOKENS[theme.DARK]["on_accent"])
+    assert check.startswith("url(") and check.split('"')[1] in qss
+
+
+def test_disabled_entry_row_is_italic(window):
+    window.entries = [QuickEntry(label="off", text="x", enabled=False)]
+    window._refresh_quick_table()
+    assert window.quick_table.item(0, 0).font().italic()

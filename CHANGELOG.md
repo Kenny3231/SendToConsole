@@ -3,6 +3,32 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.4] - 2026-10-10
+
+### Sécurité
+- Coffre ouvert à deux endroits (autre session, autre poste, clé USB,
+  synchronisation) : l'enregistrement refuse désormais d'écraser une version
+  modifiée ailleurs depuis l'ouverture. L'outil propose de recharger le
+  coffre, d'écraser avec les entrées de la session, ou de reporter.
+  Auparavant, le dernier qui enregistrait effaçait en silence les
+  modifications de l'autre.
+- Les raccourcis dangereux enregistrés par une version antérieure (Ctrl+V,
+  Maj+lettre, AltGr+touche produisant un caractère…) ne sont plus activés au
+  chargement : l'entrée apparaît « refusé » avec la raison dans le journal.
+  Même contrôle pour les raccourcis d'action relus au démarrage.
+- Option « Notifications discrètes » (Options > Apparence) : la bulle de
+  capture n'affiche plus le titre de la fenêtre cible, qui contient souvent
+  le nom de l'hôte et reste dans l'historique des notifications de Windows.
+
+### Ajouté
+- Propriétés de version de l'exécutable (Explorateur > Propriétés >
+  Détails), tirées de la version de l'application.
+
+### Corrigé
+- Un raccourci pressé pendant le compte à rebours d'un envoi annonçait
+  « envoi mis en pause » alors que rien n'était mis en pause.
+- Thème sombre : barre de défilement plus contrastée.
+
 ## [0.7.3] - 2026-09-29
 
 ### Corrigé

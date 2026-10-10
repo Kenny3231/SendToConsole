@@ -29,6 +29,7 @@ class OptionsMixin:
                                real_path=real_path,
                                app_hotkeys=self._app_hotkeys,
                                refused_actions=self._refused_actions(),
+                               discreet_notifications=self._discreet_notifications,
                                parent=self)
         self._suspend_during_capture(*dialog.hotkey_edits.values())
         dialog.theme_previewed.connect(self._apply_theme)
@@ -37,6 +38,8 @@ class OptionsMixin:
                 dialog, action, mods, vk))
         dialog.method_changed.connect(self._apply_send_method)
         dialog.altgr_with_ctrl_changed.connect(self._apply_altgr_with_ctrl)
+        dialog.discreet_notifications_changed.connect(
+            self._apply_discreet_notifications)
         dialog.reset_requested.connect(
             lambda: self._reset_master_password(dialog))
         dialog.open_folder_requested.connect(self._open_store_folder)
@@ -65,6 +68,11 @@ class OptionsMixin:
         self._settings.setValue("send/altgr_with_ctrl", enabled)
         self._log(
             f"AltGr envoyé {'avec' if enabled else 'sans'} Ctrl gauche.")
+
+    def _apply_discreet_notifications(self, enabled: bool) -> None:
+        self._discreet_notifications = enabled
+        self._settings.setValue("ui/discreet_notifications", enabled)
+        self._log(f"Notifications {'discrètes' if enabled else 'détaillées'}.")
 
     def _refresh_options_icon(self) -> None:
         """La roue est dessinée, donc recolorée à chaque changement de thème :

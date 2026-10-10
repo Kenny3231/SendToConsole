@@ -28,10 +28,43 @@ dossier de l'application, à côté de SendToConsole.exe.
 """
 
 import os
+import re
 from pathlib import Path
+
+from PyInstaller.utils.win32.versioninfo import (
+    FixedFileInfo, StringFileInfo, StringStruct, StringTable, VarFileInfo,
+    VarStruct, VSVersionInfo)
 
 ROOT = Path(SPECPATH).parent
 ICON = ROOT / "assets" / "sendtoconsole.ico"
+
+# Proprietes de version de l'exe (Explorateur > Proprietes > Details) : moins
+# de faux positifs antivirus, et prerequis d'une future signature. Lue dans
+# APP_VERSION (seule source de verite, verifiee par release.yml contre le tag).
+_version_text = re.search(
+    r'^APP_VERSION = "(\d+)\.(\d+)\.(\d+)"$',
+    (ROOT / "src" / "ui" / "main_window.py").read_text(encoding="utf-8"),
+    re.MULTILINE)
+if _version_text is None:
+    raise SystemExit("APP_VERSION introuvable dans src/ui/main_window.py")
+_VERSION = tuple(int(n) for n in _version_text.groups()) + (0,)
+_VERSION_STR = ".".join(map(str, _VERSION[:3]))
+VERSION_INFO = VSVersionInfo(
+    ffi=FixedFileInfo(filevers=_VERSION, prodvers=_VERSION),
+    kids=[
+        StringFileInfo([StringTable("040C04B0", [
+            StringStruct("CompanyName", "Kenny3231"),
+            StringStruct("FileDescription", "SendToConsole"),
+            StringStruct("FileVersion", _VERSION_STR),
+            StringStruct("InternalName", "SendToConsole"),
+            StringStruct("LegalCopyright", "Copyright (c) 2026 Kenny3231 - MIT"),
+            StringStruct("OriginalFilename", "SendToConsole.exe"),
+            StringStruct("ProductName", "SendToConsole"),
+            StringStruct("ProductVersion", _VERSION_STR),
+        ])]),
+        VarFileInfo([VarStruct("Translation", [0x040C, 1200])]),
+    ],
+)
 
 ONEFILE = os.environ.get("STC_ONEFILE", "") not in ("", "0")
 PRUNE = os.environ.get("STC_NO_PRUNE", "") in ("", "0")
@@ -136,7 +169,7 @@ _common = dict(
     console=False,              # application fenêtrée, pas de console noire
     disable_windowed_traceback=False,
     icon=str(ICON) if ICON.exists() else None,
-    version=None,
+    version=VERSION_INFO,
 )
 
 if ONEFILE:

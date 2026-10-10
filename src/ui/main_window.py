@@ -41,7 +41,7 @@ from ui.window.actions import ActionsMixin
 from ui.theme import LIGHT
 
 APP_TITLE = "SendToConsole"
-APP_VERSION = "0.7.3"
+APP_VERSION = "0.7.4"
 
 
 
@@ -83,6 +83,11 @@ class MainWindow(SendingMixin,
         self._theme = str(self._settings.value("ui/theme", LIGHT))
         self._altgr_with_ctrl = self._settings.value(
             "send/altgr_with_ctrl", True, type=bool)
+        self._discreet_notifications = self._settings.value(
+            "ui/discreet_notifications", False, type=bool)
+        # Entrees de la session non enregistrees (conflit reporte, echec) :
+        # « Quitter » avertit au lieu de les perdre en silence.
+        self._unsaved_changes = False
 
         self.controller = InjectController(guard_focus=True)
         self.controller.send_method = str(

@@ -33,7 +33,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from core.models import QuickEntry
 from security.file_acl import restrict_to_current_user
-from security.provider import SecretProvider, SecretProviderError
+from security.provider import SecretProvider, SecretProviderError, StoreChangedError
 
 FORMAT_VERSION = 1
 # Cout volontairement eleve : le fichier est sur disque, une attaque hors
@@ -239,6 +239,10 @@ class LocalEncryptedProvider(SecretProvider):
         # Resultat du dernier durcissement ACL (None = pas encore tente) :
         # l'UI le signale s'il a echoue (le fichier garde ses droits herites).
         self.acl_restricted: bool | None = None
+        # Charge utile (jeton Fernet) lue ou ecrite en dernier : si le fichier
+        # n'a plus la meme au moment d'enregistrer, une autre session l'a
+        # modifie et save() refuse de l'ecraser (StoreChangedError).
+        self._seen_payload: str | None = None
 
     # ------------------------------------------------------------------ --
     @property
@@ -284,6 +288,7 @@ class LocalEncryptedProvider(SecretProvider):
             payload = raw["payload"].encode("ascii")
             # Fichiers anterieurs sans le champ : cout historique.
             iterations = raw.get("iterations", LEGACY_PBKDF2_ITERATIONS)
+            version = raw.get("version", FORMAT_VERSION)
         except PermissionError as exc:
             raise SecretProviderError(
                 f"Accès refusé au fichier de stockage ({self.path}). Il a "
@@ -299,6 +304,12 @@ class LocalEncryptedProvider(SecretProvider):
                 TypeError, AttributeError) as exc:
             raise SecretProviderError(
                 f"Fichier de stockage illisible : {exc}") from exc
+
+        if version != FORMAT_VERSION:
+            raise SecretProviderError(
+                f"Fichier de stockage au format {version!r}, inconnu de cette "
+                f"version de l'outil (format {FORMAT_VERSION}) : mettez "
+                "SendToConsole à jour. Le fichier n'est pas modifié.")
 
         if (not isinstance(iterations, int) or isinstance(iterations, bool)
                 or not MIN_PBKDF2_ITERATIONS <= iterations
@@ -317,6 +328,7 @@ class LocalEncryptedProvider(SecretProvider):
         self._salt = salt
         self._iterations = iterations
         self._fernet = fernet
+        self._seen_payload = raw["payload"]
         # Un coffre seulement ouvert (jamais reecrit) ou migre par copie
         # garderait sinon ses droits herites, souvent trop larges.
         self.acl_restricted = restrict_to_current_user(self.path, like=self.path)
@@ -325,6 +337,7 @@ class LocalEncryptedProvider(SecretProvider):
         self._fernet = None
         self._salt = None
         self._iterations = PBKDF2_ITERATIONS
+        self._seen_payload = None
 
     def reset(self) -> None:
         """Supprime le fichier chiffre et verrouille. Irreversible : sans le
@@ -342,6 +355,7 @@ class LocalEncryptedProvider(SecretProvider):
         if self._fernet is None:
             raise SecretProviderError("Stockage verrouillé.")
         if not self.exists:
+            self._seen_payload = None       # supprime : rien a proteger
             return []
 
         try:
@@ -368,7 +382,43 @@ class LocalEncryptedProvider(SecretProvider):
         if invalid:
             raise SecretProviderError(
                 "Contenu du stockage invalide (format inattendu).")
+        self._seen_payload = raw["payload"]
         return result
+
+    def accept_external_change(self) -> None:
+        """L'utilisateur choisit d'ecraser la version modifiee ailleurs : le
+        prochain save() la remplacera. Refuse si le fichier est illisible :
+        il peut venir d'une version plus recente de l'outil, l'ecraser en
+        perdrait le contenu."""
+        try:
+            current = self._disk_payload(self.path)
+        except OSError as exc:
+            raise SecretProviderError(
+                f"Lecture impossible du coffre ({self.path}) : "
+                f"{exc.strerror or exc}") from exc
+        if current == "":
+            raise SecretProviderError(
+                f"Le coffre {self.path} est illisible par cette version "
+                "(format plus récent ou fichier altéré) : il n'est pas écrasé.")
+        self._seen_payload = current
+
+    @staticmethod
+    def _disk_payload(path: Path) -> str | None:
+        """Charge utile actuellement sur disque ; None si le fichier n'existe
+        pas, \"\" s'il est illisible (format plus recent, fichier altere) -
+        ce qui compte alors comme une modification exterieure."""
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            payload = raw["payload"]
+            version = raw.get("version", FORMAT_VERSION)
+        except FileNotFoundError:
+            return None
+        except (json.JSONDecodeError, KeyError, TypeError, AttributeError,
+                UnicodeDecodeError):
+            return ""
+        if version != FORMAT_VERSION or not isinstance(payload, str):
+            return ""
+        return payload
 
     def save(self, entries: list[QuickEntry]) -> None:
         self._write(entries, self.path, exclusive=False)
@@ -428,8 +478,20 @@ class LocalEncryptedProvider(SecretProvider):
             if exclusive:
                 _rename_no_replace(tmp, target)
             else:
+                # ponytail: verification puis replace, pas un verrou ; une
+                # ecriture concurrente dans cet intervalle (ms) passerait.
+                # Verrou de fichier si le coffre partage devient un usage courant.
+                current = self._disk_payload(target)
+                if (self._seen_payload is not None
+                        and current != self._seen_payload):
+                    what = "supprimé" if current is None else "modifié"
+                    raise StoreChangedError(
+                        f"Le coffre {target} a été {what} ailleurs (autre "
+                        "session, autre poste ou synchronisation) depuis son "
+                        "ouverture. Rien n'a été écrit.")
                 tmp.replace(target)
             tmp = None
+            self._seen_payload = document["payload"]
         except FileExistsError as exc:
             raise SecretProviderError(
                 f"Un fichier existe déjà : {target}. Il n'est jamais écrasé."

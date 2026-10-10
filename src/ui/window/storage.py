@@ -20,7 +20,8 @@ from PySide6.QtWidgets import (
 
 from security.local_encrypted import (
     LocalEncryptedProvider, redirected_store_path)
-from security.provider import SecretProvider, SecretProviderError
+from security.provider import (
+    SecretProvider, SecretProviderError, StoreChangedError)
 from ui.master_password_dialog import STORE_FILTER
 from ui.store_history import (
     LAST_KEY, recent_stores, remember_store, same_path, with_store_suffix)
@@ -189,6 +190,7 @@ class StorageMixin:
         self.provider = provider
         self._acl_warned = False        # nouveau coffre : nouvel avertissement
         self.entries = entries
+        self._unsaved_changes = False
         self.hotkeys.register_all(self.entries)
         self._refresh_quick_table()
         self._update_storage_banner()
@@ -247,6 +249,7 @@ class StorageMixin:
         self.provider = provider
         self._acl_warned = False
         self.entries = []
+        self._unsaved_changes = False
         self._refresh_quick_table()
         self._update_storage_banner()
 
@@ -275,20 +278,81 @@ class StorageMixin:
         except SecretProviderError as exc:
             QMessageBox.critical(self, "Chargement impossible", str(exc))
             self.entries = []
+        self._unsaved_changes = False
         self.hotkeys.register_all(self.entries)
         self._refresh_quick_table()
         self._log(f"{len(self.entries)} entrée(s) d'envoi rapide chargée(s).")
         self._warn_if_acl_not_restricted()
 
-    def _save_entries(self) -> None:
+    def _save_entries(self) -> bool:
+        """Rend True si les entrées sont enregistrées."""
         if self.provider is None or not self.provider.is_unlocked():
-            return
+            return False
         try:
             self.provider.save(self.entries)
+        except StoreChangedError as exc:
+            saved = self._resolve_store_conflict(str(exc))
         except SecretProviderError as exc:
             QMessageBox.critical(self, "Enregistrement impossible", str(exc))
-            return
-        self._warn_if_acl_not_restricted()
+            saved = False
+        else:
+            saved = True
+            self._warn_if_acl_not_restricted()
+        self._unsaved_changes = not saved
+        return saved
+
+    def confirm_quit(self) -> bool:
+        """Avant « Quitter » : des modifications non enregistrées (conflit
+        reporté, échec d'écriture) ne disparaissent pas sans avertissement."""
+        if not self._unsaved_changes or self._save_entries():
+            return True
+        return QMessageBox.question(
+            self, "Modifications non enregistrées",
+            "Les entrées modifiées pendant cette session ne sont pas "
+            "enregistrées dans le coffre. Quitter quand même et les perdre ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No) == QMessageBox.StandardButton.Yes
+
+    def _resolve_store_conflict(self, message: str) -> bool:
+        """Coffre modifié ailleurs : l'utilisateur choisit quelle version
+        garder (jamais d'écrasement silencieux). Rend True si les entrées de
+        la session ont été enregistrées."""
+        self._log("Coffre modifié ailleurs depuis son ouverture : "
+                  "enregistrement suspendu.", "WARN")
+        box = QMessageBox(QMessageBox.Icon.Warning, "Coffre modifié ailleurs",
+                          message, parent=self)
+        reload_btn = box.addButton("Recharger le coffre (perdre mes "
+                                   "modifications)",
+                                   QMessageBox.ButtonRole.AcceptRole)
+        overwrite_btn = box.addButton("Écraser avec mes entrées",
+                                      QMessageBox.ButtonRole.DestructiveRole)
+        later_btn = box.addButton("Plus tard",
+                                  QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(later_btn)    # Entrée réflexe : rien de perdu
+        box.exec()
+        clicked = box.clickedButton()
+        box.deleteLater()
+        try:
+            if clicked is reload_btn:
+                # Lu à part : en cas d'échec (master password changé ailleurs,
+                # format plus récent), la session garde ses entrées.
+                entries = self.provider.load()
+                self.hotkeys.unregister_all(self.entries)
+                self.entries = entries
+                self.hotkeys.register_all(self.entries)
+                self._refresh_quick_table()
+                self._log(f"Coffre rechargé ({len(entries)} entrée(s)).")
+                self._unsaved_changes = False
+                return False
+            if clicked is overwrite_btn:
+                self.provider.accept_external_change()
+                if self._save_entries():
+                    self._log("Coffre écrasé avec les entrées de cette "
+                              "session.", "WARN")
+                    return True
+        except SecretProviderError as exc:
+            QMessageBox.critical(self, "Coffre modifié ailleurs", str(exc))
+        return False
 
     def _warn_if_acl_not_restricted(self) -> None:
         """Le coffre garde ses droits hérités (clé USB FAT32, partage réseau,

@@ -74,6 +74,8 @@ def test_pause_resume_stop(ctl):
     ctl.pause()
     assert ctl.state == "paused"
     ctl.resume()
+    assert ctl.state == "resuming"
+    ctl._tick()
     assert ctl.state == "sending"
     ctl.stop()
     assert ctl.state == "idle" and not ctl.is_running
@@ -108,3 +110,39 @@ def test_second_start_while_running_is_refused(ctl):
     ctl.start(tokens(), HKL, TARGET, force_foreground=False)
     ctl.start(tokens(), HKL, TARGET, force_foreground=False)
     assert errors and "déjà" in errors[0]
+
+
+def test_regression_pause_during_countdown_reports_nothing_paused(ctl):
+    """Raccourci presse pendant le compte a rebours : l'UI annoncait « envoi
+    mis en pause » alors que pause() n'agissait pas."""
+    backend.force_foreground(TARGET)
+    ctl.start(tokens("abc"), HKL, TARGET, countdown=3, force_foreground=False)
+    assert ctl.pause() is False and ctl.state == "countdown"
+
+
+def test_regression_resume_gives_focus_back_to_target(ctl):
+    """Le clic sur « Reprendre » donnait le focus a l'outil : le garde-focus
+    remettait aussitot l'envoi en pause."""
+    backend.force_foreground(TARGET)
+    ctl.start(tokens("abcdef"), HKL, TARGET, force_foreground=False)
+    ctl._tick()
+    ctl.pause()
+    backend.force_foreground(1002)            # clic sur « Reprendre » : focus ailleurs
+    ctl.resume()
+    run_to_end(ctl)
+    assert "".join(backend.sent_scan) == "abcdef"
+
+
+def test_regression_resuming_releases_held_modifiers(ctl):
+    """Raccourci tenu pendant l'attente de reprise : les premieres frappes
+    partaient en Ctrl/Alt+lettre."""
+    backend.force_foreground(TARGET)
+    ctl.start(tokens("abc"), HKL, TARGET, force_foreground=False)
+    ctl._tick()
+    ctl.pause()
+    ctl.resume()
+    backend.held_modifiers.append("Alt")
+    released = []
+    ctl.modifiers_released.connect(released.append)
+    ctl._tick()
+    assert released == [["Alt"]] and ctl.state == "settling"

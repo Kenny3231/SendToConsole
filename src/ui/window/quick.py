@@ -16,9 +16,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from core.hotkeys import (
-    format_hotkey,
-)
+from core.hotkeys import format_hotkey, unsafe_hotkey_reason
 from core.models import QuickEntry
 from keyboard import backend as w32
 from ui.quick_entry_dialog import QuickEntryDialog
@@ -207,9 +205,19 @@ class QuickSendMixin:
         ignore le raccourci. Rend True si c'etait le cas."""
         if not self.controller.is_running:
             return False
-        self.controller.pause()
-        self._deny("raccourci pressé pendant un envoi : envoi mis en pause "
-                   "(Reprendre pour continuer)")
+        # Masque d'Alt (regle 2bis) dans TOUS les etats : sinon son relachement
+        # active la barre de menus de la cible, meme avant la premiere frappe.
+        w32.release_held_modifiers()
+        if self.controller.pause():
+            self._deny("raccourci pressé pendant un envoi : envoi mis en "
+                       "pause (Reprendre pour continuer)")
+        else:
+            # Compte a rebours, relachement des touches, reprise, deja en
+            # pause : chaque depart de frappe passe par _begin_sending, qui
+            # attend le relachement physique des modificateurs.
+            self._deny("un envoi est déjà en pause"
+                       if self.controller.state == "paused"
+                       else "un envoi est déjà en cours")
         return True
 
     def _exec_entry_dialog(self, dlg: QuickEntryDialog) -> bool:
@@ -225,9 +233,12 @@ class QuickSendMixin:
         self._quick_send(entry, countdown=0)
 
     def _on_hotkey_refused(self, entry: QuickEntry) -> None:
+        reason = (unsafe_hotkey_reason(entry.mods, entry.vk,
+                                       w32.current_layout())
+                  or "déjà pris par une autre application.")
         self._log(
-            f"Raccourci {format_hotkey(entry.mods, entry.vk)} refusé : "
-            f"déjà pris par une autre application.", "WARN")
+            f"Raccourci {format_hotkey(entry.mods, entry.vk)} de l'entrée "
+            f"« {entry.label} » refusé : {reason}", "WARN")
 
     def _quick_send(self, entry: QuickEntry, countdown: int,
                     hwnd: int = 0) -> None:

@@ -224,3 +224,15 @@ def test_action_hotkey_is_debounced(monkeypatch):
 def test_unsafe_hotkey_reason(mods, vk, unsafe):
     reason = hk.unsafe_hotkey_reason(mods, vk, 0x040C040C)
     assert (reason is not None) is unsafe
+
+
+def test_regression_legacy_unsafe_entry_combo_is_not_registered(fake_win):
+    """Coffre anterieur a la v0.7.0 : une entree sur Ctrl+V etait encore
+    enregistree au chargement et confisquait le coller de Windows."""
+    m, fake = fake_win
+    refused = []
+    m.registration_failed.connect(refused.append)
+    entry = QuickEntry("ancien", mods=hk.MOD_CONTROL, vk=0x56)
+    assert not m.register(entry)
+    assert refused == [entry] and not entry.registered
+    assert fake.live == {}

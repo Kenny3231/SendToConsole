@@ -812,3 +812,103 @@ def test_palette_click_keeps_fallback_to_last_window(window, monkeypatch):
     assert len(starts) == 1
     args, kw = starts[0]
     assert args[2] == 1002 and kw["restore_focus"] is True
+
+
+# ------------------------------------------------------------ v0.7.4 --
+def test_discreet_notification_hides_target_title(window):
+    """Le titre (souvent le nom d'hote) restait dans l'historique Windows."""
+    got = []
+    window.notify.connect(got.append)
+    window.hide()
+    window._apply_discreet_notifications(True)
+    window._capture_window(1002)
+    assert got and "Connexion Bureau" not in got[0]
+    assert window._settings.value("ui/discreet_notifications", type=bool)
+
+
+def test_legacy_unsafe_action_hotkey_not_registered_at_startup(window):
+    from core.hotkeys import ACTION_TOGGLE_PALETTE, MOD_CONTROL
+    window.hotkeys.unregister_all_actions()
+    window._app_hotkeys[ACTION_TOGGLE_PALETTE] = (MOD_CONTROL, 0x56)  # Ctrl+V
+    window.register_app_hotkeys()
+    assert not window.hotkeys.is_action_registered(ACTION_TOGGLE_PALETTE)
+    assert "copier / coller" in window.log_edit.toPlainText()
+
+
+def _answer_conflict(monkeypatch, prefix):
+    from PySide6.QtWidgets import QMessageBox
+
+    def click(box):
+        next(b for b in box.buttons() if b.text().startswith(prefix)).click()
+    monkeypatch.setattr(QMessageBox, "exec", click)
+
+
+@pytest.mark.parametrize("choice, expected", [
+    ("Recharger", ["d-ailleurs"]),
+    ("Écraser", ["de-la-session"]),
+])
+def test_vault_modified_elsewhere_asks_which_version_to_keep(
+        window, tmp_path, fast_kdf, monkeypatch, choice, expected):
+    path = tmp_path / "entries.enc"
+    _vault(path)
+    mine = _vault(path)
+    assert window.adopt_provider(mine)
+    _vault(path).save([QuickEntry(label="d-ailleurs", text="x")])
+
+    _answer_conflict(monkeypatch, choice)
+    window.entries = [QuickEntry(label="de-la-session", text="x")]
+    window._save_entries()
+
+    assert [e.label for e in window.entries] == expected
+    assert [e.label for e in _vault(path).load()] == expected
+
+
+def test_failed_reload_after_conflict_keeps_session_entries(
+        window, tmp_path, fast_kdf, monkeypatch):
+    """Coffre réinitialisé ailleurs (autre master password) : « Recharger »
+    vidait la session sans rien charger."""
+    from PySide6.QtWidgets import QMessageBox
+    path = tmp_path / "entries.enc"
+    assert window.adopt_provider(_vault(path))
+    path.unlink()
+    _vault(path, password="autre", labels=["d-ailleurs"])
+
+    _answer_conflict(monkeypatch, "Recharger")
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)
+    window.entries = [QuickEntry(label="de-la-session", text="x")]
+    assert not window._save_entries()
+    assert [e.label for e in window.entries] == ["de-la-session"]
+
+
+def test_conflict_dialog_defaults_to_later(window, tmp_path, fast_kdf,
+                                           monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    seen = []
+    monkeypatch.setattr(QMessageBox, "exec",
+                        lambda box: seen.append(box.defaultButton().text()))
+    path = tmp_path / "entries.enc"
+    assert window.adopt_provider(_vault(path))
+    _vault(path).save([QuickEntry(label="d-ailleurs", text="x")])
+    window.entries = [QuickEntry(label="de-la-session", text="x")]
+    assert not window._save_entries()
+    assert seen == ["Plus tard"]
+    assert [e.label for e in _vault(path).load()] == ["d-ailleurs"]
+
+
+def test_quit_warns_when_conflict_was_postponed(window, tmp_path, fast_kdf,
+                                                monkeypatch):
+    """« Plus tard » puis « Quitter » : les entrees disparaissaient sans
+    avertissement."""
+    from PySide6.QtWidgets import QMessageBox
+    path = tmp_path / "entries.enc"
+    assert window.adopt_provider(_vault(path))
+    _vault(path).save([QuickEntry(label="d-ailleurs", text="x")])
+    _answer_conflict(monkeypatch, "Plus tard")
+    window.entries = [QuickEntry(label="de-la-session", text="x")]
+    window._save_entries()
+
+    asked = []
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: (
+        asked.append(a[1]) or QMessageBox.StandardButton.No))
+    assert not window.confirm_quit()
+    assert asked == ["Modifications non enregistrées"]

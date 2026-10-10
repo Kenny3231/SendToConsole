@@ -357,3 +357,66 @@ def test_save_preserves_existing_protected_dacl(store):
     p.save([QuickEntry(label="a", text="x")])
     assert users in _acl_sids(store)
     assert "(I)" not in _icacls(store)
+
+
+def test_regression_save_refuses_vault_modified_elsewhere(store):
+    """Meme coffre ouvert dans deux sessions : le dernier qui enregistrait
+    effacait en silence les entrees de l'autre."""
+    from security.provider import StoreChangedError
+    a = _fresh(store)
+    b = LocalEncryptedProvider(store)
+    b.unlock("master")
+    b.load()
+    a.save([QuickEntry("de-a", SECRET)])
+    with pytest.raises(StoreChangedError):
+        b.save([QuickEntry("de-b", SECRET)])
+    assert [e.label for e in _fresh(store).load()] == ["de-a"]
+
+    b.accept_external_change()              # choix explicite : ecraser
+    b.save([QuickEntry("de-b", SECRET)])
+    assert [e.label for e in _fresh(store).load()] == ["de-b"]
+
+
+def test_own_successive_saves_are_not_a_conflict(store):
+    p = _fresh(store)
+    p.save([QuickEntry("1", SECRET)])
+    p.save([QuickEntry("2", SECRET)])
+    assert [e.label for e in p.load()] == ["2"]
+
+
+def test_overwrite_refused_when_vault_unreadable(store):
+    """Fichier d'une version plus recente (ou altere) : ne jamais l'ecraser."""
+    p = _fresh(store)
+    store.write_text('{"version": 2, "autre": "format"}', encoding="utf-8")
+    with pytest.raises(SecretProviderError):
+        p.save([])
+    with pytest.raises(SecretProviderError):
+        p.accept_external_change()
+    assert "autre" in store.read_text(encoding="utf-8")
+
+
+def test_regression_vault_deleted_elsewhere_is_not_recreated_silently(store):
+    """Coffre reinitialise sur un autre poste (master password compromis) :
+    la session encore ouverte le recreait avec l'ancienne cle."""
+    from security.provider import StoreChangedError
+    p = _fresh(store)
+    p.save([QuickEntry("a", SECRET)])
+    store.unlink()
+    with pytest.raises(StoreChangedError):
+        p.save([QuickEntry("b", SECRET)])
+    assert not store.exists()
+
+
+def test_newer_format_refused_at_unlock_and_never_downgraded(store):
+    p = _fresh(store)
+    p.save([])
+    doc = json.loads(store.read_text(encoding="utf-8"))
+    doc["version"] = 2
+    store.write_text(json.dumps(doc), encoding="utf-8")
+    with pytest.raises(SecretProviderError, match="format"):
+        LocalEncryptedProvider(store).unlock("master")
+    with pytest.raises(SecretProviderError):
+        p.save([])                          # conflit
+    with pytest.raises(SecretProviderError):
+        p.accept_external_change()          # jamais d'ecrasement
+    assert json.loads(store.read_text(encoding="utf-8"))["version"] == 2

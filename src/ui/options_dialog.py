@@ -21,6 +21,7 @@ class OptionsDialog(QDialog):
     theme_previewed = Signal(str)
     method_changed = Signal(str)
     altgr_with_ctrl_changed = Signal(bool)
+    discreet_notifications_changed = Signal(bool)
     reset_requested = Signal()
     open_folder_requested = Signal()
     open_store_requested = Signal()      # utiliser un autre coffre (ou en créer un)
@@ -34,6 +35,7 @@ class OptionsDialog(QDialog):
                  real_path: str = "",
                  app_hotkeys: dict[str, tuple[int, int]] | None = None,
                  refused_actions: set[str] | None = None,
+                 discreet_notifications: bool = False,
                  parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Options")
@@ -49,7 +51,9 @@ class OptionsDialog(QDialog):
 
         # --- Apparence ---
         appearance = QGroupBox("Apparence")
-        appearance_layout = QHBoxLayout(appearance)
+        appearance_box = QVBoxLayout(appearance)
+        appearance_layout = QHBoxLayout()
+        appearance_box.addLayout(appearance_layout)
         appearance_layout.addWidget(QLabel("Thème :"))
 
         self.theme_combo = QComboBox()
@@ -60,6 +64,19 @@ class OptionsDialog(QDialog):
         self.theme_combo.currentIndexChanged.connect(
             lambda _i: self.theme_previewed.emit(self.theme_combo.currentData()))
         appearance_layout.addWidget(self.theme_combo, stretch=1)
+
+        self.discreet_chk = QCheckBox(
+            "Notifications discrètes (sans le titre de la fenêtre cible)")
+        self.discreet_chk.setChecked(discreet_notifications)
+        self.discreet_chk.toggled.connect(
+            self.discreet_notifications_changed.emit)
+        appearance_box.addWidget(self.discreet_chk)
+        discreet_help = QLabel(
+            "Le titre d'une console contient souvent le nom de l'hôte ; "
+            "Windows garde les notifications dans son historique.")
+        discreet_help.setWordWrap(True)
+        discreet_help.setObjectName("hintLabel")
+        appearance_box.addWidget(discreet_help)
         layout.addWidget(appearance)
 
         # --- Methode d'envoi ---

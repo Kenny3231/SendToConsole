@@ -254,7 +254,9 @@ class TargetMixin:
                      if "tourne en administrateur" in self._target_elevation
                      else " (administrateur ? frappes peut-être bloquées)")
         self._set_status(f"Cible : {title}{admin}")
-        self._notify(f"Cible : {title}{admin}", from_hotkey)
+        shown = ("fenêtre capturée" if self._discreet_notifications
+                 else title)
+        self._notify(f"Cible : {shown}{admin}", from_hotkey)
         return True
 
     def _track_foreground(self) -> None:

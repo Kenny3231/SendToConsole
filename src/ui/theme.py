@@ -70,6 +70,7 @@ TOKENS: dict[str, dict[str, str]] = {
         "arrow_glyph": "#3a4561",
         "secondary_hover": "#eef1fb",
         "palette_border": "#b9c0cc",
+        "scroll_handle": "#d9dce1",
     },
     DARK: {
         "bg": "#1b1e24",
@@ -113,6 +114,7 @@ TOKENS: dict[str, dict[str, str]] = {
         "arrow_glyph": "#e6e9ee",
         "secondary_hover": "#2b313d",
         "palette_border": "#454c59",
+        "scroll_handle": "#707a8a",
     },
 }
 
@@ -382,7 +384,7 @@ QScrollBar:vertical, QScrollBar:horizontal {
 }
 
 QScrollBar::handle {
-    background: $border;
+    background: $scroll_handle;
     border-radius: 5px;
     min-height: 24px;
     min-width: 24px;

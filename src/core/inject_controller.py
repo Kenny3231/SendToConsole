@@ -119,19 +119,28 @@ class InjectController(QObject):
         self._tokens = []       # la sequence (secrets compris) ne survit pas
         self.status_changed.emit(f"Arrêté - {reason}")
 
-    def pause(self) -> None:
+    def pause(self) -> bool:
+        """Met en pause un envoi en cours de frappe. Rend False (rien fait)
+        dans tout autre etat : compte a rebours, relachement des touches..."""
         if self._state != "sending":
-            return
+            return False
         self._timer.stop()
         self._set_state("paused")
         self.status_changed.emit("En pause.")
+        return True
 
     def resume(self) -> None:
+        """Comme le script d'origine : la cible reprend le focus (le clic
+        sur « Reprendre » l'a donne a l'outil, et le garde-focus remettait
+        aussitot en pause), puis 400 ms de 'resuming' avant la frappe."""
         if self._state != "paused":
             return
-        self._set_state("sending")
-        self.status_changed.emit("Envoi repris.")
-        self._timer.start(50)
+        if not w32.force_foreground(self._target_hwnd):
+            self.failed.emit("Réactivation de la fenêtre cible impossible.")
+            return
+        self._set_state("resuming")
+        self.status_changed.emit("Reprise...")
+        self._timer.start(400)
 
     # ------------------------------------------------------------ interne --
     def _begin_sending(self) -> None:
@@ -190,9 +199,9 @@ class InjectController(QObject):
             return
 
         if self._state == "resuming":
-            self._set_state("sending")
-            self.status_changed.emit("Envoi en cours...")
-            self._timer.setInterval(50)
+            # Par _begin_sending : un raccourci presse pendant l'attente
+            # laisserait sinon Ctrl/Alt tenus sur les premieres frappes.
+            self._begin_sending()
             return
 
         if self._state != "sending":

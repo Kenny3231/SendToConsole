@@ -149,6 +149,14 @@ class HotkeyManager(QObject, QAbstractNativeEventFilter):
         if not IS_WINDOWS or not self._hwnd:
             entry.registered = False
             return False
+        # Le dialogue d'entree refuse deja ces combinaisons, mais un coffre
+        # anterieur (avant v0.6.3 / v0.7.0) peut encore en contenir.
+        from keyboard import backend as w32
+        if unsafe_hotkey_reason(entry.mods, entry.vk, w32.current_layout()):
+            entry.registered = False
+            entry.hotkey_id = 0
+            self.registration_failed.emit(entry)
+            return False
 
         hotkey_id = self._next_id
         self._next_id += 1

@@ -127,7 +127,6 @@ if sys.platform == "win32":
     def _copy_protected_dacl(path: Path, like: Path) -> bool | None:
         """Recopie la DACL de `like` si elle est deja protegee. Rend None si
         `like` n'a pas de DACL protegee (ou est illisible) : rien n'est fait."""
-        powner = ctypes.c_void_p()
         pdacl = ctypes.c_void_p()
         psd = ctypes.c_void_p()
         if _advapi32.GetNamedSecurityInfoW(

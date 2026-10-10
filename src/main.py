@@ -43,6 +43,8 @@ def build_tray_icon(app: QApplication, window: MainWindow) -> QSystemTrayIcon:
             window.activateWindow()
 
     def quit_app() -> None:
+        if not window.confirm_quit():
+            return
         window.shutdown()
         app.quit()
 

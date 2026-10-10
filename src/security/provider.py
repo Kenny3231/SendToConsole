@@ -18,6 +18,11 @@ class SecretProviderError(Exception):
     """Erreur d'accès au stockage (mauvais mot de passe, fichier corrompu...)."""
 
 
+class StoreChangedError(SecretProviderError):
+    """Le stockage a été modifié ailleurs (autre session, autre poste,
+    synchronisation) depuis sa dernière lecture : rien n'a été écrit."""
+
+
 class SecretProvider(ABC):
     """Source d'entrees d'envoi rapide."""
 
@@ -42,6 +47,11 @@ class SecretProvider(ABC):
     @abstractmethod
     def save(self, entries: list[QuickEntry]) -> None:
         ...
+
+    def accept_external_change(self) -> None:
+        """Apres un StoreChangedError, sur choix explicite de l'utilisateur :
+        le prochain save() remplacera la version modifiee ailleurs. Sans
+        effet pour une source qui ne detecte pas ces modifications."""
 
     @abstractmethod
     def lock(self) -> None:

@@ -124,7 +124,12 @@ class ActionsMixin:
             if not (mods and vk):
                 continue
             owner = hotkey_owner(self.entries, {}, mods, vk)
-            if owner is not None:
+            # Reglage anterieur a la v0.7.0 : jamais revalide jusqu'ici.
+            unsafe = unsafe_hotkey_reason(mods, vk, w32.current_layout())
+            if unsafe is not None:
+                self._log(f"Raccourci « {ACTION_LABELS[action]} » inactif : "
+                          f"{unsafe}", "WARN")
+            elif owner is not None:
                 self._log(
                     f"Raccourci {format_hotkey(mods, vk)} "
                     f"(« {ACTION_LABELS[action]} ») inactif : déjà attribué à "

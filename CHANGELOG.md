@@ -11,7 +11,11 @@ versions selon [SemVer](https://semver.org/lang/fr/).
   modifiée ailleurs depuis l'ouverture. L'outil propose de recharger le
   coffre, d'écraser avec les entrées de la session, ou de reporter.
   Auparavant, le dernier qui enregistrait effaçait en silence les
-  modifications de l'autre.
+  modifications de l'autre. Un coffre supprimé ailleurs n'est plus recréé
+  en silence, et « Quitter » avertit s'il reste des entrées non
+  enregistrées.
+- Un coffre d'un format plus récent est refusé à l'ouverture au lieu d'être
+  lu puis réécrit dans l'ancien format.
 - Les raccourcis dangereux enregistrés par une version antérieure (Ctrl+V,
   Maj+lettre, AltGr+touche produisant un caractère…) ne sont plus activés au
   chargement : l'entrée apparaît « refusé » avec la raison dans le journal.

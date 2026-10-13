@@ -2,7 +2,7 @@
 # requirements-core.txt suffit pour tester le moteur clavier seul (cli_test.py).
 
 # Interface graphique
-PySide6==6.11.2
+PySide6==6.12.0
 
 # Chiffrement du fichier d'entrees d'envoi rapide
 cryptography==50.0.1

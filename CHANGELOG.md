@@ -3,6 +3,12 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.8] - 2026-11-17
+
+### Sécurité
+- Pillow 12.3.0 -> 13.0.0 (alertes Dependabot). Pillow est embarqué depuis
+  l'OCR de la v0.7.7 (dépendance de RapidOCR) : mise à jour recommandée.
+
 ## [0.7.7] - 2026-11-17
 
 ### Ajouté

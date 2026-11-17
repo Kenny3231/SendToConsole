@@ -12,11 +12,12 @@ import hmac
 import time
 from typing import Optional
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice, QTimer
 from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from core.ocr import OcrJob
 from core.hotkeys import (
     ACTION_CAPTURE_TARGET, ACTION_LABELS, ACTION_PASTE_CLIPBOARD,
     ACTION_TOGGLE_PALETTE, format_hotkey, hotkey_owner, unsafe_hotkey_reason,
@@ -24,6 +25,7 @@ from core.hotkeys import (
 from core.models import QuickEntry
 from core.paste import EMPTY_REASON, PastePlan, prepare_paste
 from keyboard import backend as w32
+from ui.ocr_preview_dialog import OcrPreviewDialog
 from ui.options_dialog import OptionsDialog
 
 #: Délai (s) pour confirmer par un second appui le collage de plusieurs lignes.
@@ -70,8 +72,15 @@ class ActionsMixin:
             # fenetre que l'operateur ne regarde pas.
             self._refuse_paste("raccourci pressé hors d'une fenêtre cible")
             return
-        from ui.clipboard import read_clipboard_text
+        from ui.clipboard import read_clipboard_image, read_clipboard_text
         raw = read_clipboard_text()
+        if not raw:
+            # Capture d'ecran : on tape le texte reconnu par OCR. Le texte,
+            # s'il y en a, reste prioritaire (Excel/Word copient les deux).
+            image = read_clipboard_image()
+            if image is not None:
+                self._ocr_paste(image, hwnd)
+                return
         if not raw and not retried:
             # Presse-papiers peut-etre verrouille un instant par une autre
             # application : une seconde lecture avant de conclure « vide ».
@@ -88,6 +97,67 @@ class ActionsMixin:
         entry = QuickEntry(label="Presse-papiers", text=plan.text, secret=True,
                            final_enter=False)
         self._quick_send(entry, countdown=0, hwnd=hwnd)
+
+    def _ocr_paste(self, image, hwnd: int) -> None:
+        """Image du presse-papiers : OCR en arriere-plan, apercu editable,
+        puis frappe dans la fenetre visee au raccourci."""
+        if self._ocr_busy:
+            self._refuse_paste("reconnaissance de texte déjà en cours")
+            return
+        png = QByteArray()
+        buffer = QBuffer(png)
+        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+        image.save(buffer, "PNG")
+        self._ocr_busy = True
+        self._log("Collage d'une image : reconnaissance du texte (OCR)…")
+        self._notify("Reconnaissance du texte de l'image…", from_hotkey=True)
+        job = OcrJob(bytes(png.data()), self)
+        job.result_ready.connect(
+            lambda text, error, h=hwnd: self._on_ocr_done(h, text, error))
+        job.finished.connect(job.deleteLater)
+        self._ocr_job = job
+        job.start()
+
+    def _on_ocr_done(self, hwnd: int, text: str, error: str) -> None:
+        self._ocr_job = None
+        try:
+            if error:
+                self._refuse_paste(error)
+            elif not text.strip():
+                self._refuse_paste("aucun texte reconnu dans l'image")
+            else:
+                self._send_ocr_text(hwnd, text)
+        finally:
+            self._ocr_busy = False
+
+    def _send_ocr_text(self, hwnd: int, text: str) -> None:
+        self._log(f"OCR : {len(text)} caractères reconnus, en attente de "
+                  "validation.")
+        edited = self._ocr_review(text)
+        del text
+        if edited is None:
+            self._log("Collage OCR annulé.")
+            return
+        plan, reason = prepare_paste(edited)
+        del edited
+        if plan is None:
+            self._refuse_paste(reason or EMPTY_REASON)
+            return
+        # L'apercu valide deja le contenu (et ses sauts de ligne) : pas de
+        # second appui du raccourci. Le focus est rendu a la fenetre visee.
+        entry = QuickEntry(label="Image (OCR)", text=plan.text, secret=True,
+                           final_enter=False)
+        self._quick_send(entry, countdown=0, hwnd=hwnd, restore_focus=True)
+
+    def _ocr_review(self, text: str) -> Optional[str]:
+        """Apercu editable : le texte corrige, ou None si annule."""
+        dialog = OcrPreviewDialog(text, self)
+        dialog.show()
+        dialog.activateWindow()
+        accepted = dialog.exec() == OcrPreviewDialog.DialogCode.Accepted
+        result = dialog.text() if accepted else None
+        dialog.deleteLater()
+        return result
 
     def _refuse_paste(self, reason: str) -> None:
         """Refus visible meme fenetre cachee (bulle du tray) : l'operateur

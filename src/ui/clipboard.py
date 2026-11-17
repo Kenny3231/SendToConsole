@@ -9,7 +9,22 @@ en fin d'envoi (sans garantie d'effacement de la memoire Python).
 
 from __future__ import annotations
 
-from PySide6.QtGui import QClipboard, QGuiApplication
+from typing import Optional
+
+from PySide6.QtGui import QClipboard, QGuiApplication, QImage
+
+
+def read_clipboard_image() -> Optional[QImage]:
+    """Image du presse-papiers (capture d'ecran), ou None. Lecture seule ;
+    l'image est convertie en texte par OCR (core/ocr.py), jamais conservee."""
+    clipboard = QGuiApplication.clipboard()
+    if clipboard is None:
+        return None
+    mime = clipboard.mimeData(QClipboard.Mode.Clipboard)
+    if mime is None or not mime.hasImage():
+        return None
+    image = clipboard.image(QClipboard.Mode.Clipboard)
+    return None if image.isNull() else image
 
 
 def read_clipboard_text() -> str:

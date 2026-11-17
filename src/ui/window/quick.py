@@ -311,7 +311,7 @@ class QuickSendMixin:
             f"« {entry.label} » refusé : {reason}", "WARN")
 
     def _quick_send(self, entry: QuickEntry, countdown: int,
-                    hwnd: int = 0) -> None:
+                    hwnd: int = 0, restore_focus: bool = False) -> None:
         """Envoi rapide : on ne force pas le premier plan. Le curseur est déjà
         dans le champ voulu au moment ou le raccourci tombe.
 
@@ -326,7 +326,8 @@ class QuickSendMixin:
 
         if not hwnd:
             hwnd = w32.get_foreground_window()
-        restore = False
+        # restore_focus : l'appelant a pris le focus (apercu OCR) et le rend.
+        restore = restore_focus
         if not hwnd or w32.belongs_to_process(hwnd, self._own_pid):
             # Le focus est sur l'outil (clic sur la palette) : on retombe sur
             # la derniere fenetre de travail connue et on lui rend le focus.

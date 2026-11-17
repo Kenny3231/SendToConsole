@@ -41,7 +41,7 @@ from ui.window.actions import ActionsMixin
 from ui.theme import LIGHT
 
 APP_TITLE = "SendToConsole"
-APP_VERSION = "0.7.6"
+APP_VERSION = "0.7.7"
 
 
 
@@ -124,6 +124,9 @@ class MainWindow(SendingMixin,
         # ne permet pas de retrouver le texte hors de ce processus.
         self._paste_pending: Optional[tuple[bytes, int, float]] = None
         self._paste_key = os.urandom(32)
+        # OCR d'une capture collee : un seul a la fois (de l'OCR a l'apercu).
+        self._ocr_busy = False
+        self._ocr_job = None
 
         saved_orientation = self._settings.value("palette/orientation", "vertical")
         self.palette_window = QuickPalette(orientation=str(saved_orientation))

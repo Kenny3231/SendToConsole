@@ -3,6 +3,17 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versions selon [SemVer](https://semver.org/lang/fr/).
 
+## [0.7.7] - 2026-11-17
+
+### Ajouté
+- Coller une capture d'écran : si le presse-papiers ne contient qu'une image,
+  « Coller le presse-papiers (frappe) » en extrait le texte par OCR
+  (RapidOCR, local, modèles embarqués) et l'affiche dans un aperçu éditable ;
+  rien n'est tapé sans validation (l'OCR confond O/0, l/1/I). Le presse-papiers
+  n'est toujours que lu, jamais écrit ; le texte est prioritaire s'il y en a.
+- Nouvelle dépendance : `rapidocr-onnxruntime` (tire onnxruntime, opencv,
+  numpy) ; build PyInstaller non encore vérifié avec elle.
+
 ## [0.7.6] - 2026-10-10
 
 ### Corrigé

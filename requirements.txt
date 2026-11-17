@@ -10,6 +10,10 @@ cryptography==50.0.1
 # Nom des processus proprietaires des fenetres (EnumWindows -> Get-Process)
 psutil==7.2.2
 
+# OCR des captures d'ecran collees (modeles embarques : aucun telechargement ;
+# tire onnxruntime, opencv-python et numpy). Lancement a froid : ~1 s.
+rapidocr-onnxruntime==1.4.4
+
 # A ajouter en V2 (integration KeePass / Vaultwarden) :
 # pykeepass
 

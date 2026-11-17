@@ -630,8 +630,9 @@ def paste(window, qapp, monkeypatch):
     import ui.clipboard as clip
     from core.hotkeys import ACTION_PASTE_CLIPBOARD
     from PySide6.QtCore import QElapsedTimer
-    state = {"text": "", "starts": [], "notes": []}
+    state = {"text": "", "image": None, "starts": [], "notes": []}
     monkeypatch.setattr(clip, "read_clipboard_text", lambda: state["text"])
+    monkeypatch.setattr(clip, "read_clipboard_image", lambda: state["image"])
     monkeypatch.setattr(window.controller, "start",
                         lambda tokens, hkl, hwnd, **kw: state["starts"].append(
                             (tokens, hwnd, kw)))
@@ -719,6 +720,88 @@ def test_paste_refuses_oversized_clipboard(window, paste):
     from core.paste import MAX_PASTE_CHARS
     assert paste("x" * (MAX_PASTE_CHARS + 1)) == []
     assert "trop long" in window.log_edit.toPlainText()
+
+
+# --------------------------------------------- coller une image (OCR) --
+@pytest.fixture
+def ocr_paste(window, paste, monkeypatch):
+    """Image au presse-papiers, faux moteur OCR, apercu simule."""
+    import core.ocr as ocr
+    from PySide6.QtGui import QImage
+    paste.state["image"] = QImage(8, 8, QImage.Format.Format_RGB32)
+    paste.state["ocr"] = "show version"
+    paste.state["error"] = None
+    paste.state["review"] = lambda text: text     # l'operateur valide tel quel
+    paste.state["reviewed"] = []
+
+    def fake_recognize(_png):
+        if paste.state["error"] is not None:
+            raise paste.state["error"]
+        return paste.state["ocr"]
+    monkeypatch.setattr(ocr, "recognize", fake_recognize)
+
+    def review(text):
+        paste.state["reviewed"].append(text)
+        return paste.state["review"](text)
+    monkeypatch.setattr(window, "_ocr_review", review)
+    return paste
+
+
+def test_paste_image_types_ocr_text_and_restores_focus(window, ocr_paste):
+    starts = ocr_paste("")
+    assert ocr_paste.state["reviewed"] == ["show version"]
+    assert len(starts) == 1
+    tokens, hwnd, kw = starts[0]
+    assert hwnd == 1001 and _typed(tokens) == "show version"
+    assert kw["restore_focus"] is True        # l'apercu a pris le focus
+
+
+def test_paste_image_types_the_edited_text(window, ocr_paste):
+    """Correction de l'operateur (Passw0rd lu PasswOrd) dans l'apercu."""
+    ocr_paste.state["ocr"] = "PasswOrd"
+    ocr_paste.state["review"] = lambda text: text.replace("O", "0")
+    starts = ocr_paste("")
+    assert _typed(starts[0][0]) == "Passw0rd"
+
+
+def test_paste_image_cancelled_types_nothing(window, ocr_paste):
+    ocr_paste.state["review"] = lambda text: None
+    assert ocr_paste("") == []
+    assert "annulé" in window.log_edit.toPlainText()
+
+
+def test_paste_text_wins_over_image(window, ocr_paste):
+    """Excel/Word copient texte ET image : le texte reste prioritaire."""
+    starts = ocr_paste("ls -la")
+    assert ocr_paste.state["reviewed"] == []
+    assert _typed(starts[0][0]) == "ls -la"
+
+
+def test_paste_image_without_text_is_refused(window, ocr_paste):
+    ocr_paste.state["ocr"] = "  \n "
+    assert ocr_paste("") == []
+    assert "aucun texte reconnu" in window.log_edit.toPlainText()
+
+
+def test_paste_image_ocr_failure_is_refused_without_leak(window, ocr_paste):
+    ocr_paste.state["error"] = ValueError("MotDePasse-Secret!42")
+    assert ocr_paste("") == []
+    log = window.log_edit.toPlainText()
+    assert "ValueError" in log and "MotDePasse-Secret!42" not in log
+    assert window._ocr_busy is False
+
+
+def test_paste_image_refused_while_ocr_busy(window, ocr_paste):
+    window._ocr_busy = True
+    assert ocr_paste("") == []
+    assert "déjà en cours" in window.log_edit.toPlainText()
+
+
+def test_paste_image_never_logs_recognized_text(window, ocr_paste):
+    ocr_paste.state["ocr"] = "MotDePasse-Secret!42"
+    ocr_paste("")
+    log = window.log_edit.toPlainText()
+    assert "MotDePasse-Secret!42" not in log and "Image (OCR)" in log
 
 
 def test_paste_never_falls_back_to_another_window(window, paste, monkeypatch):

@@ -31,6 +31,7 @@ import os
 import re
 from pathlib import Path
 
+from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.win32.versioninfo import (
     FixedFileInfo, StringFileInfo, StringStruct, StringTable, VarFileInfo,
     VarStruct, VSVersionInfo)
@@ -73,10 +74,11 @@ a = Analysis(
     [str(ROOT / "src" / "main.py")],
     pathex=[str(ROOT / "src")],
     binaries=[],
-    # Aucune donnée embarquée : les icônes sont dessinées par le code et le
-    # thème est un gabarit Python. Rien à extraire au démarrage.
-    datas=[],
-    hiddenimports=["psutil"],
+    # Seules données embarquées : les modèles ONNX et la config de RapidOCR
+    # (OCR des captures collées). Les icônes sont dessinées par le code et le
+    # thème est un gabarit Python.
+    datas=collect_data_files("rapidocr_onnxruntime"),
+    hiddenimports=["psutil", "rapidocr_onnxruntime"],
     hookspath=[],
     runtime_hooks=[],
     # Modules Qt inutiles ici : les exclure évite d'embarquer leurs bindings.
